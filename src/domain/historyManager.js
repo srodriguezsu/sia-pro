@@ -126,9 +126,10 @@ const STORAGE_KEY_GPA_CACHED_SUBJECTS = "sia_pro_gpa_cached_subjects";
  * 
  * @param {string} subjectName - Name of the subject.
  * @param {Array.<Object>} activities - Scraped activities array.
+ * @param {{period: string|null, credits: number|null, typology: string|null}} [meta] - Optional subject metadata.
  * @returns {void}
  */
-export function saveGpaCachedSubject(subjectName, activities) {
+export function saveGpaCachedSubject(subjectName, activities, meta) {
     if (!subjectName || !activities) return;
     try {
         const subjects = loadAllGpaCachedSubjects();
@@ -141,6 +142,48 @@ export function saveGpaCachedSubject(subjectName, activities) {
         localStorage.setItem(STORAGE_KEY_GPA_CACHED_SUBJECTS, JSON.stringify(subjects));
     } catch (e) {
         console.error("[SIA Pro] Error al guardar asignatura GPA en caché:", e);
+    }
+    if (meta) saveGpaSubjectMeta(subjectName, meta);
+}
+
+const STORAGE_KEY_GPA_SUBJECT_META = "sia_pro_gpa_subject_meta";
+
+/**
+ * Loads the metadata (period, credits, typology) of every cached GPA subject.
+ *
+ * @returns {Object.<string, {period: string|null, credits: number|null, typology: string|null}>} Metadata keyed by subject name.
+ */
+export function loadAllGpaSubjectMeta() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY_GPA_SUBJECT_META);
+        return data ? JSON.parse(data) : {};
+    } catch (e) {
+        console.error("[SIA Pro] Error al cargar metadatos de asignaturas:", e);
+        return {};
+    }
+}
+
+/**
+ * Saves metadata for a subject. Null fields never overwrite previously known values,
+ * so a partially loaded page cannot erase credits or period already scraped.
+ *
+ * @param {string} subjectName - Name of the subject.
+ * @param {{period: string|null, credits: number|null, typology: string|null}} meta - Subject metadata.
+ * @returns {void}
+ */
+export function saveGpaSubjectMeta(subjectName, meta) {
+    if (!subjectName || !meta) return;
+    try {
+        const all = loadAllGpaSubjectMeta();
+        const prev = all[subjectName] || {};
+        const merged = { ...prev };
+        for (const key of ["period", "credits", "typology"]) {
+            if (meta[key] != null) merged[key] = meta[key];
+        }
+        all[subjectName] = merged;
+        localStorage.setItem(STORAGE_KEY_GPA_SUBJECT_META, JSON.stringify(all));
+    } catch (e) {
+        console.error("[SIA Pro] Error al guardar metadatos de asignatura:", e);
     }
 }
 
@@ -226,6 +269,7 @@ export function clearAllExtensionData() {
         STORAGE_KEY_CREDITOS,
         STORAGE_KEY_GPA_SIMULATIONS,
         STORAGE_KEY_GPA_CACHED_SUBJECTS,
+        STORAGE_KEY_GPA_SUBJECT_META,
         "sia_pro_gpa_selected_subject",
         "sia_pro_selected_subjects",
         "sia_pro_selected_groups"

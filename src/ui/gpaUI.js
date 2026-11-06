@@ -1,15 +1,17 @@
 import { SELECTORS } from "../utils/selectors.js";
-import { calculateCurrentGPA, normalizeSubjectName } from "../domain/gpaCalculator.js";
+import { calculateCurrentGPA, normalizeSubjectName, calculateSemesterGPA, roundGrade } from "../domain/gpaCalculator.js";
 import {
     extractActivitiesFromDom,
     extractSubjectName,
+    extractSubjectMeta,
     areGradeContainersAvailable
 } from "../scraper/domScraper.js";
 import {
     saveGpaSimulationForSubject,
     loadGpaSimulationForSubject,
     saveGpaCachedSubject,
-    loadAllGpaCachedSubjects
+    loadAllGpaCachedSubjects,
+    loadAllGpaSubjectMeta
 } from "../domain/historyManager.js";
 
 /**
@@ -120,11 +122,44 @@ export function bindRefreshButton(onRefresh) {
     }
 }
 
+const NO_PERIOD_KEY = "__sin_periodo__";
+
+/**
+ * Sorts period keys from most recent to oldest, leaving subjects without period last.
+ *
+ * @param {string} a - Period key.
+ * @param {string} b - Period key.
+ * @returns {number} Sort order.
+ */
+function comparePeriodsDesc(a, b) {
+    if (a === NO_PERIOD_KEY) return 1;
+    if (b === NO_PERIOD_KEY) return -1;
+    return b.localeCompare(a, undefined, { numeric: true });
+}
+
+/**
+ * Computes a subject's grade with saved simulations applied (ungraded activities count as 0).
+ *
+ * @param {string} subjectName - Subject name.
+ * @param {Array.<Object>} activities - Cached activities.
+ * @returns {{ grade: number, evaluatedWeight: number }} Accumulated grade and evaluated weight (0-1).
+ */
+function computeSubjectGrade(subjectName, activities) {
+    const sims = loadGpaSimulationForSubject(subjectName);
+    const applied = activities.map(a => ({
+        ...a,
+        grade: sims[a.description] !== undefined ? sims[a.description] : a.grade
+    }));
+    const { currentGPA } = calculateCurrentGPA(applied);
+    const evaluatedWeight = applied.reduce((sum, a) => sum + (Number.isFinite(a.grade) ? a.percentage : 0), 0);
+    return { grade: currentGPA, evaluatedWeight };
+}
+
 /**
  * Renders the interactive GPA simulator panel inside the modal tab.
- * Allows selecting cached subjects or automatically scraping the active subject,
- * then delegates details rendering.
- * 
+ * Subjects are grouped by academic period: the user picks a semester, sees its
+ * credit-weighted PAPA and subject list, and then simulates a single subject.
+ *
  * @param {HTMLElement} container - The container element to mount the simulator inside.
  * @returns {void}
  */
@@ -137,13 +172,14 @@ export function renderGpa(container) {
         const domSubjectName = normalizeSubjectName(extractSubjectName());
         if (domSubjectName && domSubjectName !== "N/A") {
             const domActivities = extractActivitiesFromDom();
-            saveGpaCachedSubject(domSubjectName, domActivities);
+            saveGpaCachedSubject(domSubjectName, domActivities, extractSubjectMeta());
             localStorage.setItem("sia_pro_gpa_selected_subject", domSubjectName);
         }
     }
 
-    // 2. Load cached subjects
+    // 2. Load cached subjects and their metadata
     const cachedSubjects = loadAllGpaCachedSubjects();
+    const subjectMeta = loadAllGpaSubjectMeta();
     const cachedSubjectNames = Object.keys(cachedSubjects);
 
     // 3. Fallback if no subjects have been cached
@@ -152,53 +188,146 @@ export function renderGpa(container) {
         return;
     }
 
-    // 4. Determine currently selected subject
+    // 4. Group subjects by period
+    const periodOf = (name) => subjectMeta[name]?.period || NO_PERIOD_KEY;
+    const groups = {};
+    cachedSubjectNames.forEach((name) => {
+        const key = periodOf(name);
+        (groups[key] ||= []).push(name);
+    });
+    const periods = Object.keys(groups).sort(comparePeriodsDesc);
+    periods.forEach((p) => groups[p].sort((a, b) => a.localeCompare(b)));
+
+    // 5. Determine currently selected subject (and therefore semester)
     let selectedSubject = localStorage.getItem("sia_pro_gpa_selected_subject");
     if (!selectedSubject || !cachedSubjects[selectedSubject]) {
-        selectedSubject = cachedSubjectNames[0];
+        selectedSubject = groups[periods[0]][0];
         localStorage.setItem("sia_pro_gpa_selected_subject", selectedSubject);
     }
+    let selectedPeriod = periodOf(selectedSubject);
 
-    // 5. Create dropdown selector UI
-    const selectorContainer = document.createElement("div");
-    selectorContainer.className = "gpa-selector-container";
-
-    const label = document.createElement("label");
-    label.setAttribute("for", "gpa-subject-select");
-    label.className = "gpa-select-label";
-    label.textContent = "Seleccionar asignatura:";
-    selectorContainer.appendChild(label);
-
-    const select = document.createElement("select");
-    select.id = "gpa-subject-select";
-    select.className = "gpa-subject-select";
-
+    // Live grades per subject; the selected one is updated by the details simulator
+    const liveGrades = {};
     cachedSubjectNames.forEach((name) => {
-        const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        if (name === selectedSubject) {
-            option.selected = true;
-        }
-        select.appendChild(option);
+        liveGrades[name] = computeSubjectGrade(name, cachedSubjects[name]);
     });
-    selectorContainer.appendChild(select);
-    container.appendChild(selectorContainer);
 
-    // 6. Create details container
+    // 6. Two-column layout: semester overview (left) + subject simulator (right).
+    // Collapses to a single column on narrow containers (see required-grade.css).
+    const layoutWrapper = document.createElement("div");
+    layoutWrapper.className = "gpa-layout-wrapper";
+    const layout = document.createElement("div");
+    layout.className = "gpa-layout";
+    const semesterColumn = document.createElement("div");
+    semesterColumn.className = "gpa-layout-semester";
+    const subjectColumn = document.createElement("div");
+    subjectColumn.className = "gpa-layout-subject";
+    layout.append(semesterColumn, subjectColumn);
+    layoutWrapper.appendChild(layout);
+    container.appendChild(layoutWrapper);
+
+    // Semester chips
+    const periodBar = document.createElement("div");
+    periodBar.className = "gpa-period-bar";
+    semesterColumn.appendChild(periodBar);
+
+    // Semester summary (PAPA + subject list)
+    const semesterCard = document.createElement("div");
+    semesterCard.className = "gpa-semester-card";
+    semesterColumn.appendChild(semesterCard);
+
+    // Subject details container
     const detailsContainer = document.createElement("div");
     detailsContainer.id = "gpa-calc-details-container";
-    container.appendChild(detailsContainer);
+    subjectColumn.appendChild(detailsContainer);
 
-    // 7. Render details for the selected subject
-    renderGpaDetails(detailsContainer, selectedSubject, cachedSubjects[selectedSubject]);
+    const periodLabel = (p) => (p === NO_PERIOD_KEY ? "Sin periodo" : p);
 
-    // 8. Bind dropdown changes
-    select.addEventListener("change", (e) => {
-        const newSelected = e.target.value;
-        localStorage.setItem("sia_pro_gpa_selected_subject", newSelected);
-        renderGpaDetails(detailsContainer, newSelected, cachedSubjects[newSelected]);
-    });
+    const renderPeriodBar = () => {
+        periodBar.innerHTML = "";
+        periods.forEach((p) => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "gpa-period-chip" + (p === selectedPeriod ? " active" : "");
+            chip.textContent = `${periodLabel(p)} (${groups[p].length})`;
+            chip.addEventListener("click", () => {
+                if (p === selectedPeriod) return;
+                selectedPeriod = p;
+                selectSubject(groups[p][0]);
+            });
+            periodBar.appendChild(chip);
+        });
+    };
+
+    const renderSemesterCard = () => {
+        const names = groups[selectedPeriod];
+        const rows = names.map((name) => ({
+            name,
+            credits: subjectMeta[name]?.credits ?? null,
+            typology: subjectMeta[name]?.typology ?? null,
+            ...liveGrades[name]
+        }));
+        const { gpa, totalCredits, includedCount } = calculateSemesterGPA(rows);
+        const missingCredits = rows.filter(r => !Number.isFinite(r.credits)).length;
+        const inProgress = rows.some(r => r.evaluatedWeight < 0.999);
+
+        const notes = [];
+        if (inProgress) notes.push("Incluye asignaturas en curso: las actividades sin nota cuentan como 0 (usa el simulador para proyectarlas).");
+        if (missingCredits > 0) notes.push(`${missingCredits} asignatura(s) sin créditos conocidos no se incluyen. Vuelve a abrirlas en <b>Mis calificaciones</b> para actualizar sus datos.`);
+
+        semesterCard.innerHTML = `
+            <div class="gpa-semester-header">
+                <div>
+                    <div class="gpa-semester-title">📅 ${periodLabel(selectedPeriod)}</div>
+                    <div class="gpa-semester-sub">${includedCount} de ${rows.length} asignaturas · ${totalCredits} créditos</div>
+                </div>
+                <div class="gpa-semester-papa" title="Promedio ponderado por créditos, con cada nota redondeada a una cifra decimal">
+                    <span class="gpa-semester-papa-label">PAPA del semestre</span>
+                    <span class="gpa-semester-papa-value ${gpa != null && gpa < 2.96 ? "failing" : ""}">${gpa != null ? gpa.toFixed(2) : "—"}</span>
+                </div>
+            </div>
+            <div class="gpa-semester-list"></div>
+            ${notes.map(n => `<div class="gpa-semester-note">${n}</div>`).join("")}
+        `;
+
+        const list = semesterCard.querySelector(".gpa-semester-list");
+        rows.forEach((r) => {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "gpa-semester-row" + (r.name === selectedSubject ? " active" : "");
+            const failing = r.grade < 2.96 ? " failing" : "";
+            row.innerHTML = `
+                <span class="gpa-semester-row-name"></span>
+                <span class="gpa-semester-row-meta"></span>
+                <span class="gpa-semester-row-grade${failing}">${roundGrade(r.grade).toFixed(1)}</span>
+            `;
+            row.querySelector(".gpa-semester-row-name").textContent = r.name;
+            const meta = [
+                r.typology,
+                Number.isFinite(r.credits) ? `${r.credits} créd.` : "créditos ?",
+                r.evaluatedWeight < 0.999 ? `evaluado ${(r.evaluatedWeight * 100).toFixed(0)}%` : null
+            ].filter(Boolean).join(" · ");
+            row.querySelector(".gpa-semester-row-meta").textContent = meta;
+            row.addEventListener("click", () => selectSubject(r.name));
+            list.appendChild(row);
+        });
+    };
+
+    const selectSubject = (name) => {
+        selectedSubject = name;
+        selectedPeriod = periodOf(name);
+        localStorage.setItem("sia_pro_gpa_selected_subject", name);
+        // Re-read saved simulations so the list reflects any edits made in the previous subject
+        liveGrades[name] = computeSubjectGrade(name, cachedSubjects[name]);
+        renderPeriodBar();
+        renderSemesterCard();
+        renderGpaDetails(detailsContainer, name, cachedSubjects[name], (grade, evaluatedWeight) => {
+            liveGrades[name] = { grade, evaluatedWeight };
+            renderSemesterCard();
+        });
+    };
+
+    selectSubject(selectedSubject);
 }
 
 /**
@@ -208,9 +337,10 @@ export function renderGpa(container) {
  * @param {HTMLElement} container - The container element to render details inside.
  * @param {string} subjectName - The name of the subject.
  * @param {Array.<Object>} originalActivities - The original grade activities array.
+ * @param {function(number, number): void} [onGradeChange] - Called with the displayed (simulated) grade and the evaluated weight (0-1) whenever it changes.
  * @returns {void}
  */
-export function renderGpaDetails(container, subjectName, originalActivities) {
+export function renderGpaDetails(container, subjectName, originalActivities, onGradeChange) {
     if (!container || !subjectName || !originalActivities) return;
     container.innerHTML = "";
 
@@ -597,6 +727,12 @@ export function renderGpaDetails(container, subjectName, originalActivities) {
 
         // Update the goal calculator
         updateGoalResult();
+
+        if (onGradeChange) {
+            // With the goal simulator active, pending activities are projected, so the subject counts as fully evaluated
+            const evaluatedWeight = goalActive ? 1 : 1 - remainingWeight;
+            onGradeChange(finalSimulatedGPA, evaluatedWeight);
+        }
     };
 
     // Render an input row for each course activity

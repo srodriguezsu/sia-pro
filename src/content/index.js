@@ -10,6 +10,7 @@ import {
     areAsignaturasAvailable,
     areCreditosAvailable,
     extractSubjectName,
+    extractSubjectMeta,
     extractActivitiesFromDom
 } from "../scraper/domScraper.js";
 import { saveGpaCachedSubject } from "../domain/historyManager.js";
@@ -195,7 +196,7 @@ function initWhenReady() {
             const subjectName = normalizeSubjectName(extractSubjectName());
             if (subjectName && subjectName !== "N/A") {
                 const activities = extractActivitiesFromDom();
-                saveGpaCachedSubject(subjectName, activities);
+                saveGpaCachedSubject(subjectName, activities, extractSubjectMeta());
 
                 // If the selected subject has changed, update selected subject
                 const prevSelected = localStorage.getItem("sia_pro_gpa_selected_subject");

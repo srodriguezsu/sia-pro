@@ -365,3 +365,181 @@
 
 
 
+
+/* ===== Semester view (GPA tab) ===== */
+.gpa-period-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.gpa-period-chip {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+}
+
+.gpa-period-chip:hover {
+    border-color: #0f6d59;
+    color: #0f6d59;
+}
+
+.gpa-period-chip.active {
+    background: #0f6d59;
+    border-color: #0f6d59;
+    color: #ffffff;
+}
+
+.gpa-semester-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.gpa-semester-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.gpa-semester-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.gpa-semester-sub {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.gpa-semester-papa {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.gpa-semester-papa-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.gpa-semester-papa-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f6d59;
+    line-height: 1.1;
+}
+
+.gpa-semester-papa-value.failing,
+.gpa-semester-row-grade.failing {
+    color: #dc2626;
+}
+
+.gpa-semester-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gpa-semester-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "name grade" "meta grade";
+    align-items: center;
+    column-gap: 12px;
+    width: 100%;
+    padding: 8px 12px;
+    text-align: left;
+    font: inherit;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.gpa-semester-row:hover {
+    border-color: #94a3b8;
+}
+
+.gpa-semester-row.active {
+    background: rgba(15, 109, 89, 0.08);
+    border-color: #0f6d59;
+}
+
+.gpa-semester-row-name {
+    grid-area: name;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.gpa-semester-row-meta {
+    grid-area: meta;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.gpa-semester-row-grade {
+    grid-area: grade;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.gpa-semester-note {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* ===== Two-column layout (GPA tab) =====
+   Uses a container query so it adapts to the modal width, not the viewport. */
+.gpa-layout-wrapper {
+    container-type: inline-size;
+}
+
+.gpa-layout {
+    display: flex;
+    flex-direction: column;
+}
+
+@container (min-width: 760px) {
+    .gpa-layout {
+        display: grid;
+        grid-template-columns: minmax(280px, 2fr) 3fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .gpa-layout-semester {
+        position: sticky;
+        top: 0;
+    }
+
+    .gpa-layout-semester .gpa-semester-card {
+        margin-bottom: 0;
+    }
+
+    .gpa-layout-subject h2 {
+        margin-top: 0;
+    }
+}

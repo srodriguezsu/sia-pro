@@ -203,13 +203,60 @@ export function extractActivitiesFromDom() {
 }
 
 /**
- * Extracts the name of the currently selected course/subject from the grades screen.
- * 
- * @returns {string} The name of the subject, or "N/A" if it cannot be found.
+ * Scrapes the name of the subject currently displayed in the grades page.
+ *
+ * @returns {string} The subject name text, or "N/A" if not found.
  */
 export function extractSubjectName() {
     const subjectNameElement = document.querySelector(SELECTORS.subjectName);
     return subjectNameElement ? subjectNameElement.textContent : "N/A";
+}
+
+/**
+ * Parses the academic period from text like "Periodo académico 2026-2S.".
+ *
+ * @param {string|null|undefined} text - Raw period element text.
+ * @returns {string|null} Normalized period (e.g. "2026-2S") or null if not found.
+ */
+export function parseSubjectPeriod(text) {
+    if (!text) return null;
+    const match = text.match(/(\d{4})\s*-\s*([0-9A-Za-z]+)/);
+    return match ? `${match[1]}-${match[2].toUpperCase()}` : null;
+}
+
+/**
+ * Parses typology and credits from text like
+ * "Datos académicos de la asignaturaTipología: FUND. OPTATIVACréditos teóricos y/o prácticos: 4".
+ *
+ * @param {string|null|undefined} text - Raw academic data element text.
+ * @returns {{ credits: number|null, typology: string|null }} Parsed values.
+ */
+export function parseSubjectAcademicData(text) {
+    if (!text) return { credits: null, typology: null };
+    const normalized = text.replace(/\s+/g, " ");
+
+    const creditsMatch = normalized.match(/Cr[ée]ditos[^:]*:\s*(\d+(?:[.,]\d+)?)/i);
+    const credits = creditsMatch ? parseFloat(creditsMatch[1].replace(",", ".")) : null;
+
+    const typologyMatch = normalized.match(/Tipolog[íi]a:\s*(.*?)\s*(?=Cr[ée]ditos|$)/i);
+    const typology = typologyMatch && typologyMatch[1].trim() ? typologyMatch[1].trim() : null;
+
+    return { credits: Number.isFinite(credits) ? credits : null, typology };
+}
+
+/**
+ * Scrapes the metadata (period, credits, typology) of the subject currently displayed
+ * in the grades page.
+ *
+ * @returns {{ period: string|null, credits: number|null, typology: string|null }} Subject metadata.
+ */
+export function extractSubjectMeta() {
+    const periodElement = document.querySelector(SELECTORS.subjectPeriod);
+    const academicDataElement = document.querySelector(SELECTORS.subjectCreditsType);
+    return {
+        period: parseSubjectPeriod(periodElement?.textContent),
+        ...parseSubjectAcademicData(academicDataElement?.textContent)
+    };
 }
 
 /**

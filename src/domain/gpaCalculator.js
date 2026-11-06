@@ -98,3 +98,40 @@ export function calculateRequiredGradePerActivity(remainingActivities, currentGP
         activities: remainingActivities
     };
 }
+
+/**
+ * Rounds a grade to one decimal, the precision of definitive grades at UNAL.
+ *
+ * @param {number} grade - Raw grade.
+ * @returns {number} Grade rounded to one decimal.
+ */
+export function roundGrade(grade) {
+    return Math.round(grade * 10) / 10;
+}
+
+/**
+ * Calculates the credit-weighted average (PAPA) of a semester.
+ * Each subject grade is rounded to one decimal before weighting, as definitive grades are.
+ * Subjects without valid credits or grade are excluded.
+ *
+ * @param {Array.<{grade: number, credits: number|null}>} subjects - Subjects of the semester.
+ * @returns {{ gpa: number|null, totalCredits: number, includedCount: number }} Weighted average (null if no credits), credits counted and subjects counted.
+ */
+export function calculateSemesterGPA(subjects) {
+    let weighted = 0;
+    let totalCredits = 0;
+    let includedCount = 0;
+
+    subjects.forEach(({ grade, credits }) => {
+        if (!Number.isFinite(grade) || !Number.isFinite(credits) || credits <= 0) return;
+        weighted += roundGrade(grade) * credits;
+        totalCredits += credits;
+        includedCount++;
+    });
+
+    return {
+        gpa: totalCredits > 0 ? weighted / totalCredits : null,
+        totalCredits,
+        includedCount
+    };
+}
