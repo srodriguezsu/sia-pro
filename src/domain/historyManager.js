@@ -146,6 +146,52 @@ export function saveGpaCachedSubject(subjectName, activities, meta) {
     if (meta) saveGpaSubjectMeta(subjectName, meta);
 }
 
+const STORAGE_KEY_GPA_GOAL_SIMULATIONS = "sia_pro_gpa_goal_simulations";
+
+/**
+ * Loads the target-grade simulator state of every subject.
+ *
+ * @returns {Object.<string, {active: boolean, target: number}>} Goal state keyed by subject name.
+ */
+export function loadAllGoalSimulations() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY_GPA_GOAL_SIMULATIONS);
+        return data ? JSON.parse(data) : {};
+    } catch (e) {
+        console.error("[SIA Pro] Error al cargar simulaciones de nota objetivo:", e);
+        return {};
+    }
+}
+
+/**
+ * Loads the target-grade simulator state of a subject.
+ *
+ * @param {string} subjectName - Name of the subject.
+ * @returns {{active: boolean, target: number}|null} Saved state, or null if never used.
+ */
+export function loadGoalSimulationForSubject(subjectName) {
+    if (!subjectName) return null;
+    return loadAllGoalSimulations()[subjectName] || null;
+}
+
+/**
+ * Saves the target-grade simulator state of a subject so it survives navigation.
+ *
+ * @param {string} subjectName - Name of the subject.
+ * @param {{active: boolean, target: number}} state - Simulator state.
+ * @returns {void}
+ */
+export function saveGoalSimulationForSubject(subjectName, state) {
+    if (!subjectName || !state) return;
+    try {
+        const all = loadAllGoalSimulations();
+        all[subjectName] = { active: !!state.active, target: state.target };
+        localStorage.setItem(STORAGE_KEY_GPA_GOAL_SIMULATIONS, JSON.stringify(all));
+    } catch (e) {
+        console.error("[SIA Pro] Error al guardar simulación de nota objetivo:", e);
+    }
+}
+
 const STORAGE_KEY_GPA_SUBJECT_META = "sia_pro_gpa_subject_meta";
 
 /**
@@ -270,6 +316,7 @@ export function clearAllExtensionData() {
         STORAGE_KEY_GPA_SIMULATIONS,
         STORAGE_KEY_GPA_CACHED_SUBJECTS,
         STORAGE_KEY_GPA_SUBJECT_META,
+        STORAGE_KEY_GPA_GOAL_SIMULATIONS,
         "sia_pro_gpa_selected_subject",
         "sia_pro_selected_subjects",
         "sia_pro_selected_groups"
