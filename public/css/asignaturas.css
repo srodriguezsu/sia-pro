@@ -233,3 +233,54 @@
     font-size: 10px;
     margin-left: 2px;
 }
+/* Overall summary bar */
+.sia-hist-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 8px 16px 0;
+    padding: 16px;
+    background: white;
+    border: 1px solid #edf2f7;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+}
+
+.sia-hist-overview .sia-hist-metric-value {
+    font-size: 22px;
+}
+
+/* Metrics (shared by the overview and each semester column) */
+.sia-hist-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.sia-hist-metric-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.sia-hist-metric-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.sia-hist-metric-value.failing,
+.sia-hist-metric-value.down {
+    color: #b91c1c;
+}
+
+.sia-hist-metric-value.good,
+.sia-hist-metric-value.up {
+    color: #0f6d59;
+}
+
+.sia-semester-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}

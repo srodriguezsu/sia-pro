@@ -1,5 +1,6 @@
 import { areAsignaturasAvailable, extractAsignaturasFromDom } from "../../scraper/domScraper.js";
 import { saveCachedAsignaturas, loadCachedAsignaturas } from "../../domain/historyManager.js";
+import { buildHistorySummary } from "../../domain/historySummary.js";
 
 /**
  * Enables mouse drag-to-scroll functionality horizontally on a given container element.
@@ -39,6 +40,83 @@ function enableDragScroll(container) {
         const walk = (x - startX) * 1.2; // Speed multiplier for smooth dragging
         container.scrollLeft = scrollLeft - walk;
     });
+}
+
+const formatGpa = (v) => (v != null ? v.toFixed(2) : "—");
+
+/**
+ * Builds a metric element with a label and a value.
+ *
+ * @param {string} label - Metric label.
+ * @param {string} value - Metric value.
+ * @param {string} [extraClass] - Optional modifier class for the value.
+ * @returns {HTMLElement} Metric element.
+ */
+function metric(label, value, extraClass = "") {
+    const el = document.createElement("div");
+    el.className = "sia-hist-metric";
+    const v = document.createElement("span");
+    v.className = "sia-hist-metric-value" + (extraClass ? " " + extraClass : "");
+    v.textContent = value;
+    const l = document.createElement("span");
+    l.className = "sia-hist-metric-label";
+    l.textContent = label;
+    el.append(v, l);
+    return el;
+}
+
+/**
+ * Builds the overall summary bar shown above the semesters.
+ *
+ * @param {ReturnType<typeof buildHistorySummary>["overall"]} overall - Overall metrics.
+ * @returns {HTMLElement} Summary bar element.
+ */
+function buildOverviewBar(overall) {
+    const bar = document.createElement("div");
+    bar.className = "sia-hist-overview";
+    bar.append(
+        metric("PAPA", formatGpa(overall.papa), overall.papa != null && overall.papa < 3 ? "failing" : ""),
+        metric("Créditos aprobados", String(overall.creditosAprobados)),
+        metric("Asignaturas reprobadas", String(overall.reprobadas), overall.reprobadas > 0 ? "failing" : "")
+    );
+    if (overall.best) bar.append(metric(`Mejor semestre · ${overall.best.key}`, formatGpa(overall.best.gpa), "good"));
+    if (overall.worst) bar.append(metric(`Semestre más bajo · ${overall.worst.key}`, formatGpa(overall.worst.gpa)));
+    return bar;
+}
+
+/**
+ * Builds the metrics block of a semester column, always with the same fields.
+ *
+ * @param {ReturnType<typeof buildHistorySummary>["semesters"][number]} s - Semester metrics.
+ * @returns {HTMLElement} Metrics element.
+ */
+function buildSemesterMetrics(s) {
+    const metrics = document.createElement("div");
+    metrics.className = "sia-semester-metrics";
+
+    let trendClass = "";
+    let trendText = "";
+    if (s.delta != null && Math.abs(s.delta) >= 0.005) {
+        trendClass = s.delta > 0 ? "up" : "down";
+        trendText = ` ${s.delta > 0 ? "▲" : "▼"} ${Math.abs(s.delta).toFixed(2)}`;
+    }
+
+    const avg = metric("Promedio del semestre", formatGpa(s.gpa) + trendText, trendClass);
+    avg.title = "Promedio ponderado por créditos; la flecha compara con el semestre anterior";
+    const papa = metric("PAPA acumulado", formatGpa(s.papa));
+    papa.title = "Promedio acumulado hasta este semestre (incluido)";
+    metrics.append(
+        avg,
+        papa,
+        metric("Créd. aprobados", String(s.creditosAprobados)),
+        metric("Créd. reprobados", String(s.creditosReprobados), s.creditosReprobados > 0 ? "failing" : "")
+    );
+    if (s.otras > 0) {
+        const other = metric("Créd. sin estado final", String(s.creditosOtros));
+        other.title = "Asignaturas sin estado APROBADA o REPROBADA (por ejemplo, en curso): no cuentan como reprobadas";
+        metrics.append(other);
+    }
+    return metrics;
 }
 
 /**
@@ -82,10 +160,14 @@ export function renderHistoriaAcademica(container) {
 
     container.appendChild(title);
 
-    // Sort semesters descending (e.g., 2025-2S > 2025-1S > 2024-2S)
-    const sortedSemestres = Object.keys(data).sort().reverse();
+    const summary = buildHistorySummary(data);
+    container.appendChild(buildOverviewBar(summary.overall));
 
-    for (const semestre of sortedSemestres) {
+    // Most recent semester first
+    const semesterSummaries = [...summary.semesters].reverse();
+
+    for (const semesterSummary of semesterSummaries) {
+        const semestre = semesterSummary.key;
         const semestreData = data[semestre];
         const materias = [...(semestreData.asignaturas || [])];
 
@@ -103,21 +185,7 @@ export function renderHistoriaAcademica(container) {
         title.textContent = semestre;
         title.className = "sia-semester-title";
 
-        const metrics = document.createElement("div");
-        metrics.className = "sia-semester-metrics";
-
-        // Display failed credits separately if the student failed any courses this semester
-        if (semestreData.creditosReprobados > 0) {
-            metrics.innerHTML = `
-                <span>Total Créditos: ${semestreData.creditosReprobados + semestreData.creditosAprobados}</span>
-                <span>Créditos Reprobados: ${semestreData.creditosReprobados}</span>
-            `;
-        } else {
-            metrics.innerHTML = `
-                <span>Total Créditos: ${semestreData.creditosAprobados}</span>
-                <span>Total Asignaturas: ${semestreData.asignaturas.length}</span>
-            `;
-        }
+        const metrics = buildSemesterMetrics(semesterSummary);
 
         column.appendChild(title);
         column.appendChild(metrics);
@@ -133,15 +201,18 @@ export function renderHistoriaAcademica(container) {
                 .replace(/\s+/g, "-");
 
             card.innerHTML = `
-                <div class="sia-asig-nombre">${asignatura.nombre}</div>
+                <div class="sia-asig-nombre"></div>
                 <div class="sia-asig-meta">
-                    <span>${asignatura.creditos} créditos</span>
-                    <span>${asignatura.componente}</span>
+                    <span class="sia-asig-creditos"></span>
+                    <span class="sia-asig-componente"></span>
                 </div>
-                <div class="sia-asig-estado ${estadoClass}">
-                    ${asignatura.calificacion ?? "-"} ${asignatura.estado}
-                </div>
+                <div class="sia-asig-estado ${estadoClass || ""}"></div>
             `;
+            // Scraped text is set with textContent to avoid interpreting it as HTML
+            card.querySelector(".sia-asig-nombre").textContent = asignatura.nombre;
+            card.querySelector(".sia-asig-creditos").textContent = `${asignatura.creditos ?? "?"} créditos`;
+            card.querySelector(".sia-asig-componente").textContent = asignatura.componente || "";
+            card.querySelector(".sia-asig-estado").textContent = `${asignatura.calificacion ?? "-"} ${asignatura.estado || ""}`.trim();
 
             column.appendChild(card);
         }

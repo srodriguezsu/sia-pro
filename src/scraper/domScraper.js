@@ -1,4 +1,5 @@
 import { SELECTORS } from "../utils/selectors.js";
+import { classifyAsignatura } from "../domain/historySummary.js";
 
 /**
  * Scrapes and extracts academic history data (subjects/courses) from the SIA DOM.
@@ -17,7 +18,8 @@ import { SELECTORS } from "../utils/selectors.js";
  *     estado: string|null
  *   }>,
  *   creditosAprobados: number,
- *   creditosReprobados: number
+ *   creditosReprobados: number,
+ *   creditosOtros: number
  * }>} An object mapping semester names to their respective course lists and credits summaries.
  */
 export function extractAsignaturasFromDom() {
@@ -77,7 +79,8 @@ export function extractAsignaturasFromDom() {
             semestres[semestre] = {
                 asignaturas: [],
                 creditosAprobados: 0,
-                creditosReprobados: 0
+                creditosReprobados: 0,
+                creditosOtros: 0
             };
         }
 
@@ -92,10 +95,14 @@ export function extractAsignaturasFromDom() {
         });
 
         // Accumulate approved and failed credits based on the subject's status
-        if (estado === "APROBADA") {
+        // Only REPROBADA counts as failed; subjects without a final status go apart
+        const kind = classifyAsignatura({ estado, calificacion });
+        if (kind === "aprobada") {
             semestres[semestre].creditosAprobados += creditos || 0;
-        } else {
+        } else if (kind === "reprobada") {
             semestres[semestre].creditosReprobados += creditos || 0;
+        } else {
+            semestres[semestre].creditosOtros += creditos || 0;
         }
     }
 
