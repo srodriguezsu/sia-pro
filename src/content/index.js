@@ -1,7 +1,6 @@
 import { renderGpa } from "../ui/gpaUI.js";
 import { renderHistoriaAcademica } from "../ui/historia_academica/asignaturasUI.js";
-import { renderCreditosProgress } from "../ui/historia_academica/creditosUI.js";
-import { renderAvanceProgress } from "../ui/historia_academica/avanceUI.js";
+import { renderMiCarrera } from "../ui/historia_academica/miCarreraUI.js";
 import { renderHorario } from "../ui/horarioUI.js";
 import { renderExportTab } from "../ui/exportUI.js";
 import { injectAddSubjectButton } from "../ui/originalUiInjector.js";
@@ -53,16 +52,14 @@ function mountApp() {
                 <div class="sia-tabs">
                     <button class="sia-tab active" data-tab="gpa">Calculadora Promedio</button>
                     <button class="sia-tab" data-tab="historia">Historia</button>
-                    <button class="sia-tab" data-tab="avance">Avance</button>
-                    <button class="sia-tab" data-tab="creditos">Créditos</button>
+                    <button class="sia-tab" data-tab="carrera">Mi carrera</button>
                     <button class="sia-tab" data-tab="horario">Horario</button>
                     <button class="sia-tab" data-tab="export">Exportar</button>
                 </div>
     
                 <div class="sia-tab-content active" id="tab-gpa"></div>
                 <div class="sia-tab-content" id="tab-historia"></div>
-                <div class="sia-tab-content" id="tab-avance"></div>
-                <div class="sia-tab-content" id="tab-creditos"></div>
+                <div class="sia-tab-content" id="tab-carrera"></div>
                 <div class="sia-tab-content" id="tab-horario"></div>
                 <div class="sia-tab-content" id="tab-export"></div>
             </div>
@@ -93,17 +90,13 @@ function bindUIEvents() {
             const tab_historia = document.getElementById("tab-historia");
             renderHistoriaAcademica(tab_historia);
 
-            // Render credit typologies/requirements breakdown
-            const tab_creditos = document.getElementById("tab-creditos");
-            renderCreditosProgress(tab_creditos);
-
             // Render GPA calculator
             const tab_gpa = document.getElementById("tab-gpa");
             renderGpa(tab_gpa);
 
-            // Render academic progress projection charts/tables
-            const tab_avance = document.getElementById("tab-avance");
-            renderAvanceProgress(tab_avance);
+            // Render "Mi carrera" (credits by typology + progress projection)
+            const tab_carrera = document.getElementById("tab-carrera");
+            renderMiCarrera(tab_carrera);
 
             // Render Horario & enrollment view
             const tab_horario = document.getElementById("tab-horario");

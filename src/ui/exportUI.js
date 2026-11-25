@@ -10,8 +10,7 @@ import {
 } from "../domain/scheduleManager.js";
 import { renderGpa } from "./gpaUI.js";
 import { renderHistoriaAcademica } from "./historia_academica/asignaturasUI.js";
-import { renderCreditosProgress } from "./historia_academica/creditosUI.js";
-import { renderAvanceProgress } from "./historia_academica/avanceUI.js";
+import { renderMiCarrera } from "./historia_academica/miCarreraUI.js";
 import { renderHorario } from "./horarioUI.js";
 
 
@@ -321,14 +320,12 @@ export function renderExportTab(container) {
                 const tab_historia = document.getElementById("tab-historia");
                 if (tab_historia) renderHistoriaAcademica(tab_historia);
 
-                const tab_creditos = document.getElementById("tab-creditos");
-                if (tab_creditos) renderCreditosProgress(tab_creditos);
 
                 const tab_gpa = document.getElementById("tab-gpa");
                 if (tab_gpa) renderGpa(tab_gpa);
 
-                const tab_avance = document.getElementById("tab-avance");
-                if (tab_avance) renderAvanceProgress(tab_avance);
+                const tab_carrera = document.getElementById("tab-carrera");
+                if (tab_carrera) renderMiCarrera(tab_carrera);
 
                 const tab_horario = document.getElementById("tab-horario");
                 if (tab_horario) renderHorario(tab_horario);
