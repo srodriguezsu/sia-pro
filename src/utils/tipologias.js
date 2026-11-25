@@ -56,22 +56,6 @@ export function compareTipologias(a, b) {
 }
 
 /**
- * Adds the subtle typology accent to a subject row: a colored left border on the row
- * and a colored dot before its name (see .sia-tipo-accent in tipologias.css).
- * Rows without a typology are left untouched.
- *
- * @param {HTMLElement} row - Row element.
- * @param {HTMLElement} nameEl - Element holding the subject name.
- * @param {string|null} name - Typology name.
- * @returns {void}
- */
-export function applyTipologiaAccent(row, nameEl, name) {
-    if (!name || !name.trim()) return;
-    row.classList.add("sia-tipo-accent", tipologiaClass(name));
-    nameEl.classList.add("sia-tipo-name");
-}
-
-/**
  * Formats a typology name in sentence case ("FUND. OPTATIVA" → "Fund. optativa"),
  * so long uppercase names from SIA do not dominate the UI.
  *

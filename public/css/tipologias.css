@@ -21,11 +21,6 @@
     flex-shrink: 0;
 }
 
-/* Subtle accent for subject rows: colored left border + dot before the name, text stays neutral */
-.sia-tipo-accent.sia-tipo-accent {
-    border-left: 4px solid var(--tipo-color);
-}
-
 /* Dot before a subject name; the row (or an ancestor) sets the typology class */
 .sia-tipo-name::before {
     content: "";

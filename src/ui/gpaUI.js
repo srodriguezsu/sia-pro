@@ -1,5 +1,5 @@
 import { SELECTORS } from "../utils/selectors.js";
-import { applyTipologiaAccent, formatTipologiaName } from "../utils/tipologias.js";
+import { tipologiaClass, formatTipologiaName } from "../utils/tipologias.js";
 import { projectPapa, isSameSubjectName } from "../domain/historySummary.js";
 import { calculateCurrentGPA, normalizeSubjectName, calculateSemesterGPA, roundGrade } from "../domain/gpaCalculator.js";
 import {
@@ -309,7 +309,8 @@ export function renderGpa(container) {
             const chip = document.createElement("button");
             chip.type = "button";
             chip.className = "gpa-period-chip" + (p === selectedPeriod ? " active" : "");
-            chip.textContent = `${periodLabel(p)} (${groups[p].length})`;
+            chip.textContent = periodLabel(p);
+            chip.title = `${groups[p].length} asignaturas`;
             chip.addEventListener("click", () => {
                 if (p === selectedPeriod) return;
                 selectedPeriod = p;
@@ -359,14 +360,14 @@ export function renderGpa(container) {
         const inProgress = rows.some(r => r.evaluatedWeight < 0.999);
 
         const notes = [];
-        if (inProgress) notes.push("Incluye asignaturas en curso: las actividades sin nota cuentan como 0 (usa la calculadora para proyectarlas).");
-        if (missingCredits > 0) notes.push(`${missingCredits} asignatura(s) sin créditos conocidos no se incluyen. Vuelve a abrirlas en <b>Mis calificaciones</b> para actualizar sus datos.`);
+        if (inProgress) notes.push("Las actividades sin nota cuentan como 0.");
+        if (missingCredits > 0) notes.push(`${missingCredits} sin créditos conocidos: ábrelas en <b>Mis calificaciones</b> para actualizarlas.`);
 
         semesterCard.innerHTML = `
             <div class="gpa-semester-header">
                 <div>
-                    <div class="gpa-semester-title">📅 ${periodLabel(selectedPeriod)}</div>
-                    <div class="gpa-semester-sub">${rows.length} asignaturas · ${totalCredits} créditos</div>
+                    <div class="gpa-semester-title">${periodLabel(selectedPeriod)}</div>
+                    <div class="gpa-semester-sub">${rows.length} asignaturas · ${totalCredits} créd.</div>
                 </div>
                 ${papaProjectionHtml(rows)}
             </div>
@@ -404,7 +405,11 @@ export function renderGpa(container) {
                 Number.isFinite(r.credits) ? `${r.credits} créd.` : "créditos ?",
                 r.typology && formatTipologiaName(r.typology)
             ].filter(Boolean).join(" · ");
-            applyTipologiaAccent(row, nameEl, r.typology);
+            // Typology only as a dot before the name, like in Historia
+            if (r.typology) {
+                row.classList.add(tipologiaClass(r.typology));
+                nameEl.classList.add("sia-tipo-name");
+            }
             row.addEventListener("click", () => selectSubject(r.name));
             list.appendChild(row);
         });
@@ -470,8 +475,14 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
 
     // Subject header
     const header = document.createElement("h2");
+    header.className = "gpa-calc-subject-title";
     header.textContent = subjectName;
     container.appendChild(header);
+
+    const gradeLabel = document.createElement("span");
+    gradeLabel.className = "gpa-calc-display-label";
+    gradeLabel.textContent = "Nota";
+    container.appendChild(gradeLabel);
 
     // Current calculated GPA display
     const gpaDisplay = document.createElement("p");
@@ -500,11 +511,11 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
     goalCard.className = "gpa-goal-card collapsed"; // Render as closed/inactive by default
     goalCard.innerHTML = `
         <div class="gpa-goal-header" title="Haz clic para activar/desactivar la calculadora de nota objetivo">
-            <span class="gpa-goal-title">🎯 Calculadora de Nota Objetivo</span>
+            <span class="gpa-goal-title">Nota objetivo</span>
             <span class="gpa-goal-arrow">▼</span>
         </div>
         <div class="gpa-goal-content">
-            <div class="gpa-goal-description">Calcula la nota promedio que necesitas en las actividades restantes para obtener la nota final deseada.</div>
+            <div class="gpa-goal-description">Elige la nota final que quieres y te decimos cuánto necesitas en lo que falta.</div>
             <div class="gpa-goal-controls">
                 <div class="gpa-goal-slider-wrapper">
                     <label for="gpa-goal-slider">Meta: <span id="gpa-goal-target-val">3.00</span> <span id="gpa-goal-target-delta" class="gpa-goal-delta"></span></label>
@@ -552,9 +563,9 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
     // Active-simulator messages. Rendered with worst-case numbers as invisible "ghosts" stacked
     // under the visible message, so the box keeps the height of the longest one and never jumps.
     const goalMessages = {
-        impossible: (req, pct) => `❌ <strong>¡Matemáticamente imposible!</strong> Necesitarías un promedio de <strong>${req}</strong> en el <strong>${pct}%</strong> restante para alcanzar esta meta.`,
-        secured: (pct, grade) => `🎉 <strong>¡Meta asegurada!</strong> Incluso si obtienes 0.0 en el <strong>${pct}%</strong> restante de la asignatura, tu nota final será de <strong>${grade}</strong>.`,
-        needed: (req, pct) => `📈 Necesitas obtener un promedio de <strong>${req}</strong> en el <strong>${pct}%</strong> restante de la asignatura.`
+        impossible: (req, pct) => `<strong>No es posible.</strong> Necesitarías <strong>${req}</strong> en el <strong>${pct}%</strong> que falta.`,
+        secured: (pct, grade) => `<strong>Meta asegurada.</strong> Aunque saques 0.0 en el <strong>${pct}%</strong> que falta, terminas con <strong>${grade}</strong>.`,
+        needed: (req, pct) => `Necesitas <strong>${req}</strong> en promedio en el <strong>${pct}%</strong> que falta.`
     };
     const goalMessageGhosts = [
         goalMessages.impossible("00.00", "100"),
@@ -641,7 +652,7 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
                 }
             });
 
-            setGoalResult("gpa-goal-status-secured", "💡 Activa la calculadora para proyectar las notas requeridas.");
+            setGoalResult("gpa-goal-status-secured", "Activa la nota objetivo para ver lo que necesitas.");
             return;
         }
 
@@ -880,8 +891,12 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
 
         // Display description and weight
         const label = document.createElement("span");
-        label.textContent = `${activity.description} (${(activity.percentage * 100).toFixed(1)}%)`;
         label.className = "gpa-calc-grade-label";
+        label.textContent = activity.description;
+        const pctEl = document.createElement("span");
+        pctEl.className = "gpa-calc-grade-pct";
+        pctEl.textContent = `${(activity.percentage * 100).toFixed(1).replace(/\.0$/, "")}%`;
+        label.appendChild(pctEl);
 
         const inputContainer = document.createElement("div");
         inputContainer.className = "gpa-calc-input-container";

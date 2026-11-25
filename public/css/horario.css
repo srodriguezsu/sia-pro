@@ -744,3 +744,224 @@
     font-size: 0.75rem;
     font-weight: 600;
 }
+
+/* ===== Calmer layout (same principles as Historia) =====
+   Flat lists instead of nested cards, grey secondary text, color only for typology and problems. */
+
+/* No inner scroll: the list grows with the modal and the calendar stays visible (sticky) */
+.sia-horario-config-panel {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+}
+
+.sia-horario-calendar-panel {
+    position: sticky;
+    top: 0;
+    border-color: #edf2f7;
+    box-shadow: none;
+    padding: 16px;
+}
+
+.sia-horario-panel-title {
+    font-size: 1rem;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 8px;
+}
+
+.sia-horario-calendar-header {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 12px;
+}
+
+/* Summary as one line */
+.sia-horario-credits-summary.is-compact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0 0 12px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #edf2f7;
+    border-radius: 0;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.sia-horario-credits-summary.is-compact b {
+    font-size: 1.1rem;
+    color: #1e293b;
+}
+
+.credits-summary-sep {
+    color: #cbd5e1;
+}
+
+.credits-summary-conflicts {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+/* Typology groups: a plain heading with the dot, no card */
+.sia-horario-typology-section {
+    background: none;
+    border: none;
+    border-left: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+.sia-horario-typology-header {
+    margin-bottom: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.sia-horario-typology-title {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.9rem;
+    color: #1e293b;
+}
+
+.sia-horario-typology-credits {
+    background: none;
+    color: #64748b;
+    font-weight: 600;
+    padding: 0;
+}
+
+.sia-horario-typology-credits.exceeds {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 100px;
+}
+
+.sia-horario-typology-body {
+    gap: 0;
+}
+
+/* Subjects: flat rows separated by a line */
+.sia-horario-subject-item {
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 12px 0;
+}
+
+.sia-horario-subject-item:hover {
+    box-shadow: none;
+    border-color: #f1f5f9;
+}
+
+.sia-horario-subject-item.has-conflict-border {
+    box-shadow: inset 3px 0 0 #ef4444;
+    padding-left: 10px;
+    border-color: #f1f5f9;
+}
+
+.subject-item-info h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.remove-subject-btn {
+    font: inherit;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    padding: 2px 6px;
+}
+
+.remove-subject-btn:hover {
+    background: none;
+    color: #b91c1c;
+    text-decoration: underline;
+}
+
+.group-selector-container {
+    margin-top: 8px;
+    gap: 4px;
+}
+
+.group-selection-details {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.group-selection-warning-banner {
+    margin-top: 2px;
+    padding: 0;
+    background: none;
+    border: none;
+    color: #b91c1c;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.sia-horario-warning {
+    margin: 6px 0 4px;
+}
+
+/* Prerequisites: a quiet text toggle */
+.subject-prereq-toggle {
+    width: auto;
+    align-self: flex-start;
+    gap: 6px;
+    border: none;
+    background: none;
+    padding: 2px 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.subject-prereq-toggle:hover {
+    box-shadow: none;
+    color: #1e293b;
+}
+
+.subject-prereq-condition {
+    background: #f8fafc;
+    border-color: #edf2f7;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+/* Calendar: lighter grid, blocks tinted with the typology color */
+.calendar-header-cell {
+    font-weight: 600;
+    background: none;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.calendar-hour-label {
+    font-weight: 500;
+    color: #94a3b8;
+    border-right: 1px solid #e2e8f0;
+}
+
+.calendar-event-block {
+    background: var(--tipo-soft, #f1f5f9);
+    border-left: 3px solid var(--tipo-color, #94a3b8);
+    color: #1e293b;
+    box-shadow: none;
+}
+
+.calendar-event-block .event-meta {
+    color: #475569;
+}
+
+.sia-horario-print-btn,
+.sia-horario-print-btn:hover {
+    box-shadow: none;
+}

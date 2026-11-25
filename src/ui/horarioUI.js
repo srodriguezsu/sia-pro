@@ -1,4 +1,4 @@
-import { tipologiaClass, compareTipologias, getTipologiaKey } from "../utils/tipologias.js";
+import { tipologiaClass, compareTipologias, getTipologiaKey, formatTipologiaName } from "../utils/tipologias.js";
 import { findApprovedAttempt } from "../domain/historySummary.js";
 import {
     loadSelectedSubjects,
@@ -70,7 +70,7 @@ export function renderHorario(container) {
     configPanel.className = "sia-horario-config-panel";
 
     const panelTitle = document.createElement("h3");
-    panelTitle.textContent = "Asignaturas Seleccionadas";
+    panelTitle.textContent = "Asignaturas seleccionadas";
     panelTitle.className = "sia-horario-panel-title";
     configPanel.appendChild(panelTitle);
 
@@ -90,19 +90,17 @@ export function renderHorario(container) {
     const creditsSummary = document.createElement("div");
     creditsSummary.className = "sia-horario-credits-summary";
 
+    // Compact summary: one line instead of a card
+    const conflictCount = subjects.filter((subj) => {
+        const g = subj.groups?.find((x) => x.name === selections[subj.name]);
+        return g && getConflictsForGroup(subj.name, g).length > 0;
+    }).length;
+    creditsSummary.classList.add("is-compact");
     creditsSummary.innerHTML = `
-        <div class="credits-summary-header no-border">
-            <div class="credits-main-metric">
-                <span class="credits-total-num">${totalCredits}</span>
-                <span class="credits-total-label">Créditos Seleccionados</span>
-            </div>
-            <div class="credits-sub-metrics">
-                <div class="sub-metric">
-                    <span class="metric-val">${totalSubjectsWithGroup}</span>
-                    <span class="metric-lbl">Asignaturas</span>
-                </div>
-            </div>
-        </div>
+        <span><b>${totalCredits}</b> ${totalCredits === 1 ? "crédito" : "créditos"}</span>
+        <span class="credits-summary-sep">·</span>
+        <span>${totalSubjectsWithGroup} ${totalSubjectsWithGroup === 1 ? "asignatura" : "asignaturas"} con grupo</span>
+        ${conflictCount > 0 ? `<span class="credits-summary-sep">·</span><span class="credits-summary-conflicts">${conflictCount} con cruce de horario</span>` : ""}
     `;
     configPanel.appendChild(creditsSummary);
 
@@ -151,7 +149,7 @@ export function renderHorario(container) {
         const sectionHeader = document.createElement("div");
         sectionHeader.className = "sia-horario-typology-header";
 
-        const formattedTipoName = tipo.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        const formattedTipoName = formatTipologiaName(tipo);
         
         const remaining = remainingByTipo.get(getTipologiaKey(tipo));
         const hasRemaining = Number.isFinite(remaining);
@@ -192,11 +190,13 @@ export function renderHorario(container) {
             header.className = "subject-item-header";
             header.innerHTML = `
                 <div class="subject-item-info">
-                    <h4>${subject.name}</h4>
+                    <h4></h4>
                     <span class="subject-item-meta">${subject.creditos || "?"} créditos</span>
                 </div>
-                <button class="remove-subject-btn" title="Eliminar asignatura">🗑️</button>
+                <button type="button" class="remove-subject-btn" title="Quitar del horario">Quitar</button>
             `;
+
+            header.querySelector("h4").textContent = subject.name;
 
             // Warn when the subject was already approved according to the academic history
             const approvedAttempt = findApprovedAttempt(planningHistory, subject.name);
@@ -222,17 +222,14 @@ export function renderHorario(container) {
             const selectorContainer = document.createElement("div");
             selectorContainer.className = "group-selector-container";
 
-            const label = document.createElement("label");
-            label.textContent = "Seleccionar Grupo:";
-            selectorContainer.appendChild(label);
-
             const select = document.createElement("select");
             select.className = "group-select-input";
+            select.setAttribute("aria-label", `Grupo de ${subject.name}`);
 
             // Default option (None selected)
             const optNone = document.createElement("option");
             optNone.value = "";
-            optNone.textContent = "-- Ninguno --";
+            optNone.textContent = "Elegir grupo";
             select.appendChild(optNone);
 
             const selectedGroupVal = selections[subject.name] || "";
@@ -265,15 +262,15 @@ export function renderHorario(container) {
                     const conflicts = getConflictsForGroup(subject.name, g);
                     const isCurrentlySelected = selectedGroupVal === g.name;
 
-                    let suffix = "";
-                    // If it conflicts and is NOT the currently selected group, flag it
+                    // Short option: group · schedule · seats, plus a clash note for other groups
+                    const parts = [g.name];
+                    if (scheduleText) parts.push(scheduleText);
+                    if (typeof g.cuposDisponibles === "number") parts.push(`${g.cuposDisponibles} cupos`);
                     if (conflicts.length > 0 && !isCurrentlySelected) {
-                        suffix = ` ⚠️ (Conflicto con: ${conflicts.map(c => c.subjectName).join(", ")})`;
+                        parts.push(`se cruza con ${conflicts.map(c => c.subjectName).join(", ")}`);
                     }
-
-                    const cuposText = typeof g.cuposDisponibles === "number" ? ` | Cupos: ${g.cuposDisponibles}` : "";
-                    const infoText = scheduleText ? ` - ${g.profesor || "Sin profesor"} (${scheduleText})${cuposText}` : ` - ${g.profesor || "Sin profesor"}${cuposText}`;
-                    opt.textContent = `${g.name}${infoText}${suffix}`;
+                    opt.textContent = parts.join(" · ");
+                    opt.title = g.profesor || "Sin profesor";
                     select.appendChild(opt);
                 });
             }
@@ -418,18 +415,20 @@ export function renderHorario(container) {
             // Display current selections conflict warning banner if exists
             const currentGroup = subject.groups?.find(g => g.name === selectedGroupVal);
             if (currentGroup) {
-                if (typeof currentGroup.cuposDisponibles === "number") {
-                    const cuposBadge = document.createElement("div");
-                    cuposBadge.className = "group-selection-cupos-banner";
-                    cuposBadge.innerHTML = `🟢 <strong>Cupos disponibles:</strong> ${currentGroup.cuposDisponibles}`;
-                    selectorContainer.appendChild(cuposBadge);
-                }
+                // Selected group details as one grey line
+                const details = document.createElement("div");
+                details.className = "group-selection-details";
+                details.textContent = [
+                    currentGroup.profesor || "Sin profesor",
+                    typeof currentGroup.cuposDisponibles === "number" ? `${currentGroup.cuposDisponibles} cupos disponibles` : null
+                ].filter(Boolean).join(" · ");
+                selectorContainer.appendChild(details);
 
                 const activeConflicts = getConflictsForGroup(subject.name, currentGroup);
                 if (activeConflicts.length > 0) {
                     const warning = document.createElement("div");
                     warning.className = "group-selection-warning-banner";
-                    warning.innerHTML = `⚠️ <strong>Conflicto detectado:</strong> Horario coincide con ${activeConflicts.map(c => `<b>${c.subjectName} (${c.groupName})</b>`).join(", ")}`;
+                    warning.textContent = `Se cruza con ${activeConflicts.map(c => `${c.subjectName} (${c.groupName})`).join(", ")}`;
                     selectorContainer.appendChild(warning);
                     item.classList.add("has-conflict-border");
                 }
@@ -458,7 +457,7 @@ export function renderHorario(container) {
     calendarHeader.className = "sia-horario-calendar-header";
 
     const calendarTitle = document.createElement("h3");
-    calendarTitle.textContent = "Calendario Semanal";
+    calendarTitle.textContent = "Calendario semanal";
     calendarTitle.className = "sia-horario-panel-title";
     calendarHeader.appendChild(calendarTitle);
 
@@ -478,7 +477,7 @@ export function renderHorario(container) {
 
     const printBtn = document.createElement("button");
     printBtn.className = "sia-horario-print-btn";
-    printBtn.innerHTML = "💾 Guardar PDF";
+    printBtn.textContent = "Guardar PDF";
     if (hasAnyConflict) {
         printBtn.disabled = true;
         printBtn.title = "No puedes guardar el PDF si existen conflictos en tu horario.";
@@ -500,8 +499,11 @@ export function renderHorario(container) {
 }
 
 /**
- * Generates and returns a weekly calendar DOM grid populated with selected group slots.
- * 
+ * Generates the weekly calendar grid with the selected groups.
+ * Only shows the days and hours in use (Monday to Friday always, weekends only when needed,
+ * hours trimmed to the classes with a 7:00-18:00 minimum), and colors each block with its
+ * typology so the calendar follows the same color code as the rest of the extension.
+ *
  * @param {Array.<Object>} subjects - List of all selected subjects.
  * @param {Object.<string, string>} selections - Map of subject name to selected group name.
  * @returns {HTMLElement} The calendar grid container element.
@@ -510,37 +512,64 @@ function renderCalendarGrid(subjects, selections) {
     const grid = document.createElement("div");
     grid.className = "sia-calendar-grid";
 
-    // Column headers: Time, Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
-    const days = ["Hora", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
-    
-    // Grid template settings
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = "70px repeat(7, 1fr)";
-    grid.style.gridTemplateRows = "40px repeat(16, 40px)"; // 16 hour slots: 6:00 to 22:00
+    const normalizeDay = (d) => (d || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    const allDays = [
+        { key: "LUNES", label: "Lun" },
+        { key: "MARTES", label: "Mar" },
+        { key: "MIERCOLES", label: "Mié" },
+        { key: "JUEVES", label: "Jue" },
+        { key: "VIERNES", label: "Vie" },
+        { key: "SABADO", label: "Sáb" },
+        { key: "DOMINGO", label: "Dom" }
+    ];
 
-    // Render day headers
-    days.forEach((day, index) => {
+    // Collect the blocks first, to know which days and hours are actually used
+    const blocks = [];
+    subjects.forEach((subj) => {
+        const selectedGroup = subj.groups?.find(g => g.name === selections[subj.name]);
+        if (!selectedGroup || !selectedGroup.horarios) return;
+        const hasConflicts = getConflictsForGroup(subj.name, selectedGroup).length > 0;
+        selectedGroup.horarios.forEach((h) => {
+            const startHour = parseInt(h.horaInicio.split(":")[0], 10);
+            const endHour = parseInt(h.horaFin.split(":")[0], 10);
+            if (isNaN(startHour) || isNaN(endHour)) return;
+            blocks.push({ subj, group: selectedGroup, h, day: normalizeDay(h.dia), startHour, endHour, hasConflicts });
+        });
+    });
+
+    const usedDays = new Set(blocks.map((b) => b.day));
+    const days = allDays.filter((d, i) => i < 5 || usedDays.has(d.key));
+    const firstHour = Math.min(7, ...blocks.map((b) => b.startHour));
+    const lastHour = Math.max(18, ...blocks.map((b) => b.endHour));
+    const hourCount = lastHour - firstHour;
+
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = `56px repeat(${days.length}, 1fr)`;
+    grid.style.gridTemplateRows = `36px repeat(${hourCount}, 40px)`;
+
+    // Column headers
+    ["", ...days.map((d) => d.label)].forEach((label, index) => {
         const header = document.createElement("div");
         header.className = "calendar-header-cell";
-        header.textContent = day;
+        header.textContent = label;
         header.style.gridColumn = `${index + 1}`;
         header.style.gridRow = "1";
         grid.appendChild(header);
     });
 
-    // Render hourly labels (6:00 to 22:00)
-    for (let hour = 6; hour < 22; hour++) {
+    // Hour labels
+    for (let hour = firstHour; hour < lastHour; hour++) {
         const label = document.createElement("div");
         label.className = "calendar-hour-label";
         label.textContent = `${hour}:00`;
         label.style.gridColumn = "1";
-        label.style.gridRow = `${hour - 6 + 2}`; // Offset by header row (1)
+        label.style.gridRow = `${hour - firstHour + 2}`;
         grid.appendChild(label);
     }
 
-    // Render background grid cells
-    for (let col = 2; col <= 8; col++) {
-        for (let row = 2; row <= 17; row++) {
+    // Background cells
+    for (let col = 2; col <= days.length + 1; col++) {
+        for (let row = 2; row <= hourCount + 1; row++) {
             const cell = document.createElement("div");
             cell.className = "calendar-bg-cell";
             cell.style.gridColumn = `${col}`;
@@ -549,119 +578,41 @@ function renderCalendarGrid(subjects, selections) {
         }
     }
 
-    // Map days to grid column indexes
-    const dayToCol = {
-        "LUNES": 2,
-        "MARTES": 3,
-        "MIERCOLES": 4,
-        "MIÉRCOLES": 4,
-        "JUEVES": 5,
-        "VIERNES": 6,
-        "SABADO": 7,
-        "SÁBADO": 7,
-        "DOMINGO": 8
-    };
+    // Class blocks, colored by typology (conflicts keep their warning style)
+    blocks.forEach(({ subj, group, h, day, startHour, endHour, hasConflicts }) => {
+        const dayIndex = days.findIndex((d) => d.key === day);
+        if (dayIndex === -1) return;
 
-    // Keep track of schedule blocks to colorize them consistently
-    const colors = [
-        "#0f6d59", // Green
-        "#0284c7", // Blue
-        "#7c3aed", // Purple
-        "#db2777", // Pink
-        "#ea580c", // Orange
-        "#2563eb"  // Dark Blue
-    ];
-    const subjectColors = {};
-    let colorIndex = 0;
+        const block = document.createElement("div");
+        block.className = `calendar-event-block ${tipologiaClass(subj.tipologia)}${hasConflicts ? " conflict" : ""}`;
+        block.style.gridColumn = `${dayIndex + 2}`;
+        block.style.gridRow = `${startHour - firstHour + 2} / ${endHour - firstHour + 2}`;
 
-    subjects.forEach((subj) => {
-        const selectedGroupName = selections[subj.name];
-        if (!selectedGroupName) return;
-
-        const selectedGroup = subj.groups?.find(g => g.name === selectedGroupName);
-        if (!selectedGroup || !selectedGroup.horarios) return;
-
-        // Assign a distinct color to this subject
-        if (!subjectColors[subj.name]) {
-            subjectColors[subj.name] = colors[colorIndex % colors.length];
-            colorIndex++;
+        const tooltipParts = [
+            subj.name,
+            group.name,
+            `${subj.creditos || "?"} créditos · ${subj.tipologia ? formatTipologiaName(subj.tipologia) : "Sin tipología"}`,
+            `Profesor: ${group.profesor || "Sin profesor"}`,
+            `${h.dia} ${h.horaInicio}-${h.horaFin}`,
+            `Aula: ${h.aula || "Sin aula"}`
+        ];
+        if (typeof group.cuposDisponibles === "number") {
+            tooltipParts.push(`${group.cuposDisponibles} cupos disponibles`);
         }
-        const subjectColor = subjectColors[subj.name];
+        block.title = tooltipParts.join("\n");
 
-        // Check conflicts for this group to apply a warning theme if overlapping
-        const hasConflicts = getConflictsForGroup(subj.name, selectedGroup).length > 0;
+        block.innerHTML = `
+            <div class="event-title"></div>
+            <div class="event-meta"></div>
+            ${hasConflicts ? `<div class="event-conflict-badge">Cruce</div>` : ""}
+        `;
+        block.querySelector(".event-title").textContent = shortenCourseName(subj.name);
+        block.querySelector(".event-meta").textContent = [group.name, h.aula].filter(Boolean).join(" · ");
 
-        selectedGroup.horarios.forEach((h) => {
-            const col = dayToCol[h.dia.toUpperCase()];
-            if (!col) return;
-
-            // Extract numeric hours to compute row span positions
-            const startHour = parseInt(h.horaInicio.split(":")[0], 10);
-            const endHour = parseInt(h.horaFin.split(":")[0], 10);
-
-            if (isNaN(startHour) || isNaN(endHour)) return;
-
-            const rowStart = startHour - 6 + 2;
-            const rowEnd = endHour - 6 + 2;
-
-            const block = document.createElement("div");
-            block.className = `calendar-event-block${hasConflicts ? " conflict" : ""}`;
-            block.style.gridColumn = `${col}`;
-            block.style.gridRow = `${rowStart} / ${rowEnd}`;
-            
-            if (!hasConflicts) {
-                block.style.backgroundColor = subjectColor;
-                block.style.borderLeftColor = darkenColor(subjectColor, 20);
-            }
-
-            const shortName = shortenCourseName(subj.name);
-            
-            // Build a detailed tooltip for hover info
-            const tooltipParts = [
-                `Asignatura: ${subj.name}`,
-                selectedGroup.name,
-                `Créditos: ${subj.creditos || "N/A"} | Tipología: ${subj.tipologia || "N/A"}`,
-                `Profesor: ${selectedGroup.profesor || "Sin profesor"}`,
-                `Horario: ${h.dia} ${h.horaInicio}-${h.horaFin}`,
-                `Aula: ${h.aula || "Sin aula"} `
-            ];
-            if (typeof selectedGroup.cuposDisponibles === "number") {
-                tooltipParts.push(`Cupos Disponibles: ${selectedGroup.cuposDisponibles}`);
-            }
-            block.title = tooltipParts.join("\n");
-
-            block.innerHTML = `
-                <div class="event-title">${shortName}</div>
-                <div class="event-meta">
-                    ${selectedGroup.name}
-                </div>
-                <div class="event-room">
-                    📍 ${h.aula || 'No asignada'}
-                </div>
-                ${hasConflicts ? `<div class="event-conflict-badge">⚠️ Conflicto</div>` : ""}
-            `;
-
-            grid.appendChild(block);
-        });
+        grid.appendChild(block);
     });
 
     return grid;
-}
-
-/**
- * Utility function to darken a hex color value for block borders.
- * 
- * @param {string} hex - The hex color code.
- * @param {number} percent - The percentage to darken (0-100).
- * @returns {string} The darkened hex color code.
- */
-function darkenColor(hex, percent) {
-    let num = parseInt(hex.replace("#",""), 16),
-    amt = Math.round(2.55 * percent),
-    R = (num >> 16) - amt,
-    G = (num >> 8 & 0x00FF) - amt,
-    B = (num & 0x0000FF) - amt;
-    return "#" + (0x1000000 + (R<0?0:R>255?255:R)*0x10000 + (G<0?0:G>255?255:G)*0x100 + (B<0?0:B>255?255:B)).toString(16).slice(1);
 }
 
 /**
