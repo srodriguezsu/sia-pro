@@ -26,7 +26,8 @@
     border-left: 4px solid var(--tipo-color);
 }
 
-.sia-tipo-accent .sia-tipo-name::before {
+/* Dot before a subject name; the row (or an ancestor) sets the typology class */
+.sia-tipo-name::before {
     content: "";
     display: inline-block;
     width: 8px;

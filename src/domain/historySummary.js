@@ -47,6 +47,7 @@ export function sortSemesterKeys(keys) {
  *     gpa: number|null,
  *     papa: number|null,
  *     delta: number|null,
+ *     papaDelta: number|null,
  *     creditosAprobados: number,
  *     creditosReprobados: number,
  *     creditosOtros: number,
@@ -68,6 +69,7 @@ export function buildHistorySummary(data) {
     const keys = sortSemesterKeys(Object.keys(data || {}));
     const allGraded = [];
     let previousGpa = null;
+    let previousPapa = null;
     let totalAprobados = 0;
     let totalReprobadas = 0;
     let totalAsignaturas = 0;
@@ -99,6 +101,9 @@ export function buildHistorySummary(data) {
         s.papa = calculateSemesterGPA(allGraded).gpa;
         s.delta = s.gpa != null && previousGpa != null ? s.gpa - previousGpa : null;
         if (s.gpa != null) previousGpa = s.gpa;
+        // Change of the cumulative PAPA caused by this semester
+        s.papaDelta = s.papa != null && previousPapa != null ? s.papa - previousPapa : null;
+        if (s.papa != null) previousPapa = s.papa;
 
         totalAprobados += s.creditosAprobados;
         totalReprobadas += s.reprobadas;

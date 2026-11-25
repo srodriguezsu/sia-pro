@@ -95,13 +95,16 @@
     color: #991b1b;
 }
 
+/* Best / lowest semester: outlined, so only "reprobada" is a filled color */
 .sia-sem-badge.good {
-    background: #dcfce7;
+    background: transparent;
+    border: 1px solid #86efac;
     color: #166534;
 }
 
 .sia-sem-badge.low {
-    background: #fef3c7;
+    background: transparent;
+    border: 1px solid #fcd34d;
     color: #92400e;
 }
 
@@ -110,49 +113,50 @@
     color: #475569;
 }
 
-/* Same three columns on every semester so values line up vertically */
+/* Semester stats: credits in grey, PAPA as the single main number (fixed width so they line up) */
 .sia-sem-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 92px);
-    gap: 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
     flex-shrink: 0;
 }
 
-.sia-sem-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    text-align: right;
-}
-
-.sia-sem-stat b {
-    font-size: 15px;
-    color: #1e293b;
+.sia-sem-credits {
+    font-size: 12px;
+    color: #94a3b8;
     white-space: nowrap;
 }
 
-.sia-sem-stat b.failing {
+.sia-sem-papa {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 118px;
+    white-space: nowrap;
+}
+
+.sia-sem-papa b {
+    font-size: 15px;
+    color: #1e293b;
+}
+
+.sia-sem-papa b.failing {
     color: #b91c1c;
 }
 
 .sia-sem-stat-label {
-    color: #64748b;
-    font-size: 11px;
-    white-space: nowrap;
-}
-
-.sia-sem-trend {
-    margin-left: 4px;
+    color: #94a3b8;
     font-size: 11px;
     font-weight: 600;
 }
 
-.sia-sem-trend.up {
-    color: #0f6d59;
-}
-
-.sia-sem-trend.down {
-    color: #b91c1c;
+/* Trend in grey: informative, not alarming */
+.sia-sem-trend {
+    font-size: 11px;
+    font-weight: 500;
+    color: #94a3b8;
+    min-width: 38px;
 }
 
 /* Subject rows inside a semester */
@@ -164,15 +168,14 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 18px 10px 15px;
-    border-left: 3px solid transparent;
+    padding: 10px 18px;
 }
 
 .sia-asig-row + .sia-asig-row {
     border-top: 1px solid #f1f5f9;
 }
 
-/* The left border belongs to the typology (see .sia-tipo-accent); failed rows keep a soft red background */
+/* Failed rows: the only strong color in the list */
 .sia-asig-row.reprobada {
     background: #fef2f2;
 }
@@ -226,38 +229,36 @@
 
     .sia-sem-stats {
         flex-basis: 100%;
-        grid-template-columns: repeat(3, 1fr);
-    }
-
-    .sia-sem-stat {
-        align-items: flex-start;
-        text-align: left;
+        justify-content: space-between;
     }
 
     .sia-asig-row {
-        padding: 10px 14px 10px 11px;
+        padding: 10px 14px;
     }
 }
 
+/* Overview: plain row of numbers, no card, so it does not compete with the semesters */
 .sia-hist-overview {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
-    margin: 8px 16px 0;
-    padding: 16px;
-    background: white;
-    border: 1px solid #edf2f7;
-    border-radius: 16px;
-    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+    margin: 4px 16px 0;
+    padding: 4px 0 12px;
+    border-bottom: 1px solid #edf2f7;
 }
 
 .sia-hist-overview .sia-hist-metric-value {
-    font-size: 22px;
+    font-size: 18px;
 }
 
-.sia-hist-overview.filtered {
-    border-color: #cbd5e0;
-    background: #f8fafc;
+.sia-hist-overview.filtered .sia-hist-metric-label {
+    color: #0f6d59;
+}
+
+@media (max-width: 640px) {
+    .sia-hist-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 /* Metrics (shared by the overview and each semester column) */
@@ -291,16 +292,18 @@
 }
 
 
-/* Search and filters */
+/* Search + "Filtros" toggle; the chips live in a panel that only opens when needed */
 .sia-hist-filters {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
-    margin: 16px 16px 0;
+    margin: 12px 16px 0;
 }
 
-.sia-hist-search,
-.sia-hist-select {
+.sia-hist-search {
+    flex: 1 1 220px;
+    min-width: 0;
     font: inherit;
     font-size: 14px;
     padding: 8px 12px;
@@ -310,20 +313,72 @@
     color: #1e293b;
 }
 
-.sia-hist-search {
-    flex: 1 1 220px;
-    min-width: 0;
-}
-
-.sia-hist-select {
-    flex: 0 1 auto;
-    max-width: 100%;
-}
-
-.sia-hist-search:focus,
-.sia-hist-select:focus {
+.sia-hist-search:focus {
     outline: 2px solid #94a3b8;
     outline-offset: 1px;
+}
+
+.sia-hist-filters-toggle {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border: 1px solid #cbd5e0;
+    border-radius: 10px;
+    background: white;
+    color: #334155;
+    cursor: pointer;
+}
+
+.sia-hist-filters-toggle.active {
+    border-color: #0f6d59;
+    color: #0f6d59;
+}
+
+.sia-hist-filters-toggle:focus-visible,
+.sia-hist-clear:focus-visible {
+    outline: 2px solid #94a3b8;
+    outline-offset: 2px;
+}
+
+.sia-hist-clear {
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 2px;
+    border: none;
+    background: none;
+    color: #64748b;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.sia-hist-filter-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 16px 0;
+    padding: 12px;
+    border: 1px solid #edf2f7;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.sia-hist-filter-panel[hidden] {
+    display: none;
+}
+
+.sia-hist-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.sia-hist-chip-group-label {
+    min-width: 64px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
 }
 
 .sia-hist-empty {
@@ -336,9 +391,9 @@
     padding: 1px 8px;
     border-radius: 100px;
     cursor: help;
-    background: #fef9c3;
-    color: #713f12;
-    font-size: 12px;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 11px;
     font-weight: 500;
 }
 
@@ -349,66 +404,56 @@
     gap: 4px 8px;
 }
 
-/* Typology chips (filter) */
+/* Filter chips (same style for status and typology) */
 .sia-hist-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin: 10px 16px 0;
+    gap: 6px;
 }
 
 .sia-hist-chip {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 5px 12px 5px 10px;
+    gap: 6px;
+    padding: 4px 11px;
     border: 1px solid #e2e8f0;
     border-radius: 100px;
     background: white;
     color: #334155;
     font: inherit;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
 }
 
-.sia-hist-chip-all::before {
-    display: none;
-}
-
-.sia-hist-chip::before {
+.sia-hist-chip.has-dot::before {
     content: "";
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: var(--tipo-color);
     flex-shrink: 0;
 }
 
 .sia-hist-chip:hover {
-    border-color: var(--tipo-color);
+    border-color: #94a3b8;
 }
 
 .sia-hist-chip:focus-visible {
-    outline: 2px solid var(--tipo-color);
+    outline: 2px solid #94a3b8;
     outline-offset: 2px;
 }
 
+/* Active chip: neutral dark for status / "all", typology tint for typologies */
 .sia-hist-chip.active {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: white;
+}
+
+.sia-hist-chip.has-dot.active {
     background: var(--tipo-soft);
     border-color: var(--tipo-color);
-    color: var(--tipo-text);
-    box-shadow: inset 0 0 0 1px var(--tipo-color);
-}
-
-.sia-hist-chip-progress {
-    font-weight: 500;
-    color: #64748b;
-    font-variant-numeric: tabular-nums;
-}
-
-.sia-hist-chip.active .sia-hist-chip-progress {
     color: var(--tipo-text);
 }
 

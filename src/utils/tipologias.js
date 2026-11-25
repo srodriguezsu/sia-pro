@@ -70,3 +70,15 @@ export function applyTipologiaAccent(row, nameEl, name) {
     row.classList.add("sia-tipo-accent", tipologiaClass(name));
     nameEl.classList.add("sia-tipo-name");
 }
+
+/**
+ * Formats a typology name in sentence case ("FUND. OPTATIVA" → "Fund. optativa"),
+ * so long uppercase names from SIA do not dominate the UI.
+ *
+ * @param {string|null} name - Typology name.
+ * @returns {string} Formatted name.
+ */
+export function formatTipologiaName(name) {
+    const lower = (name || "").trim().toLocaleLowerCase("es");
+    return lower.charAt(0).toLocaleUpperCase("es") + lower.slice(1);
+}

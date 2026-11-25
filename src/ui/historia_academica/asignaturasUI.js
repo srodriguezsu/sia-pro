@@ -3,7 +3,7 @@ import { saveCachedAsignaturas, loadCachedAsignaturas, loadCachedCreditos } from
 import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
 import { calculateSemesterGPA, roundGrade } from "../../domain/gpaCalculator.js";
 import { findCalculatorSubject, openCalculatorForSubject } from "../gpaUI.js";
-import { applyTipologiaAccent, tipologiaClass, compareTipologias, getTipologiaKey } from "../../utils/tipologias.js";
+import { tipologiaClass, compareTipologias, getTipologiaKey, formatTipologiaName } from "../../utils/tipologias.js";
 
 const formatGpa = (v) => (v != null ? v.toFixed(2) : "—");
 
@@ -99,34 +99,31 @@ function buildSemesterHeader(s, subjectCount, showStats = true, highlights = {})
         ? `${subjectCount} asignatura${subjectCount === 1 ? "" : "s"}`
         : `${subjectCount} coincidencia${subjectCount === 1 ? "" : "s"}`;
 
+    // Main number: cumulative PAPA after this semester; credits as secondary grey text
     const stats = document.createElement("span");
     stats.className = "sia-sem-stats";
 
-    const avg = document.createElement("span");
-    avg.className = "sia-sem-stat";
-    avg.title = "Promedio ponderado por créditos; la flecha compara con el semestre anterior";
-    avg.innerHTML = `<b></b><span class="sia-sem-stat-label">Promedio</span>`;
-    avg.querySelector("b").textContent = formatGpa(s.gpa);
-    if (s.gpa != null && s.gpa < 3) avg.querySelector("b").classList.add("failing");
-    if (s.delta != null && Math.abs(s.delta) >= 0.005) {
-        const trend = document.createElement("span");
-        trend.className = "sia-sem-trend " + (s.delta > 0 ? "up" : "down");
-        trend.textContent = `${s.delta > 0 ? "▲" : "▼"}${Math.abs(s.delta).toFixed(2)}`;
-        avg.querySelector("b").appendChild(trend);
-    }
-
     const papa = document.createElement("span");
-    papa.className = "sia-sem-stat";
-    papa.title = "Promedio acumulado hasta este semestre (incluido)";
-    papa.innerHTML = `<b></b><span class="sia-sem-stat-label">PAPA</span>`;
-    papa.querySelector("b").textContent = formatGpa(s.papa);
+    papa.className = "sia-sem-papa";
+    papa.title = "PAPA acumulado hasta este semestre (incluido); la flecha indica cuánto cambió respecto al semestre anterior";
+    papa.innerHTML = `<span class="sia-sem-stat-label">PAPA</span> <b></b>`;
+    const papaValue = papa.querySelector("b");
+    papaValue.textContent = formatGpa(s.papa);
+    if (s.papa != null && s.papa < 3) papaValue.classList.add("failing");
+    // The trend slot is always present (empty when there is no change) so every header lines up
+    const trend = document.createElement("span");
+    trend.className = "sia-sem-trend";
+    if (s.papaDelta != null && Math.abs(s.papaDelta) >= 0.005) {
+        trend.textContent = `${s.papaDelta > 0 ? "▲" : "▼"}${Math.abs(s.papaDelta).toFixed(2)}`;
+    }
+    papa.appendChild(trend);
 
     const credits = document.createElement("span");
-    credits.className = "sia-sem-stat";
-    credits.innerHTML = `<b></b><span class="sia-sem-stat-label">Créd. aprobados</span>`;
-    credits.querySelector("b").textContent = String(s.creditosAprobados);
+    credits.className = "sia-sem-credits";
+    credits.textContent = `${s.creditosAprobados} créd.`;
+    credits.title = "Créditos aprobados en este semestre";
 
-    stats.append(avg, papa, credits);
+    stats.append(credits, papa);
 
     // Exceptions are badges next to the name, so every header keeps the same aligned columns
     const badges = document.createElement("span");
@@ -135,14 +132,14 @@ function buildSemesterHeader(s, subjectCount, showStats = true, highlights = {})
         const best = document.createElement("span");
         best.className = "sia-sem-badge good";
         best.textContent = "Mejor semestre";
-        best.title = "Semestre con el promedio más alto";
+        best.title = "Semestre con las mejores notas (promedio del semestre más alto)";
         badges.appendChild(best);
     }
     if (s.key === highlights.worst) {
         const worst = document.createElement("span");
         worst.className = "sia-sem-badge low";
         worst.textContent = "Semestre más bajo";
-        worst.title = "Semestre con el promedio más bajo";
+        worst.title = "Semestre con las notas más bajas (promedio del semestre más bajo)";
         badges.appendChild(worst);
     }
     if (s.reprobadas > 0) {
@@ -324,14 +321,19 @@ export function renderHistoriaAcademica(container) {
 }
 
 /**
- * Builds the search box and filter selects above the semesters.
+ * Builds the filter area: a search box and a "Filtros" button that reveals status and typology
+ * chips. The panel opens by itself when a filter is already active (e.g. coming from "Mi carrera"),
+ * and a "Limpiar filtros" link appears whenever any filter is on.
  *
  * @param {Object} data - History grouped by semester.
  * @param {{text: string, componente: string, estado: string}} filters - Mutable filter state.
  * @param {function} onChange - Called after any filter change.
- * @returns {HTMLElement} Filter bar element.
+ * @returns {HTMLElement} Filter area element.
  */
 function buildFilterBar(data, filters, onChange) {
+    const area = document.createElement("div");
+    area.className = "sia-hist-filter-area";
+
     const bar = document.createElement("div");
     bar.className = "sia-hist-filters";
 
@@ -339,119 +341,147 @@ function buildFilterBar(data, filters, onChange) {
     search.type = "search";
     search.placeholder = "Buscar asignatura…";
     search.className = "sia-hist-search";
-    search.addEventListener("input", () => { filters.text = search.value.trim(); onChange(); });
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "sia-hist-filters-toggle";
+
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "sia-hist-clear";
+    clear.textContent = "Limpiar filtros";
+
+    bar.append(search, toggle, clear);
+
+    const panel = document.createElement("div");
+    panel.className = "sia-hist-filter-panel";
 
     const componentes = [...new Set(
         Object.values(data).flatMap((s) => (s.asignaturas || []).map((a) => a.componente).filter(Boolean))
     )].sort(compareTipologias);
 
-    const makeSelect = (options, key) => {
-        const select = document.createElement("select");
-        select.className = "sia-hist-select";
-        options.forEach(([value, label]) => select.append(new Option(label, value)));
-        select.addEventListener("change", () => { filters[key] = select.value; onChange(); });
-        return select;
+    // Same chip style for both filters
+    const estadoGroup = buildChipGroup("Estado", [
+        { value: "", label: "Todos" },
+        { value: "aprobada", label: "Aprobadas" },
+        { value: "reprobada", label: "Reprobadas" },
+        { value: "repetida", label: "Cursadas más de una vez" }
+    ], filters, "estado", () => update());
+    const tipoGroup = buildChipGroup("Tipología", tipologiaOptions(componentes), filters, "componente", () => update());
+    panel.append(estadoGroup.el, tipoGroup.el);
+
+    let open = Boolean(filters.componente || filters.estado);
+    const activeCount = () => (filters.componente ? 1 : 0) + (filters.estado ? 1 : 0);
+    const paint = () => {
+        const n = activeCount();
+        toggle.textContent = n > 0 ? `Filtros (${n})` : "Filtros";
+        toggle.classList.toggle("active", n > 0);
+        toggle.setAttribute("aria-expanded", String(open));
+        panel.hidden = !open;
+        clear.hidden = !(n > 0 || filters.text);
+        estadoGroup.paint();
+        tipoGroup.paint();
     };
+    const update = () => { paint(); onChange(); };
 
-    // Typology chips: colored like everywhere else, with the credit progress of each typology
-    const chips = buildTipologiaChips(componentes, filters, onChange);
+    search.addEventListener("input", () => { filters.text = search.value.trim(); update(); });
+    toggle.addEventListener("click", () => { open = !open; paint(); });
+    clear.addEventListener("click", () => {
+        filters.text = "";
+        filters.componente = "";
+        filters.estado = "";
+        search.value = "";
+        update();
+    });
 
-    bar.append(
-        search,
-        makeSelect([
-            ["", "Todos los estados"],
-            ["aprobada", "Aprobadas"],
-            ["reprobada", "Reprobadas"],
-            ["repetida", "Cursadas más de una vez"]
-        ], "estado")
-    );
-
-    const wrapperEl = document.createElement("div");
-    wrapperEl.className = "sia-hist-filter-area";
-    wrapperEl.append(bar, chips);
-    return wrapperEl;
+    paint();
+    area.append(bar, panel);
+    return area;
 }
 
 /**
- * Builds the typology chips used as filter. Each chip shows the approved / required credits
- * of that typology when the credits summary is cached. Clicking an active chip clears it.
+ * Typology options for the filter: one per typology (different spellings merged),
+ * in sentence case, with the credit progress in the tooltip.
  *
  * @param {Array.<string>} componentes - Typology names present in the history (ordered).
- * @param {{componente: string}} filters - Mutable filter state.
- * @param {function} onChange - Called after the selection changes.
- * @returns {HTMLElement} Chips container.
+ * @returns {Array.<{value: string, label: string, className?: string, title?: string}>} Chip options.
  */
-function buildTipologiaChips(componentes, filters, onChange) {
-    const creditos = loadCachedCreditos() || [];
+function tipologiaOptions(componentes) {
     const creditsByKey = new Map();
-    creditos.forEach((c) => {
+    (loadCachedCreditos() || []).forEach((c) => {
         const key = getTipologiaKey(c.componente);
         if (key) creditsByKey.set(key, c);
     });
 
-    // One chip per typology value (different spellings of the same typology are merged)
     const seen = new Map();
     componentes.forEach((name) => {
         const value = tipologiaFilterValue(name);
         if (!seen.has(value)) seen.set(value, name);
     });
 
-    const container = document.createElement("div");
-    container.className = "sia-hist-chips";
-    container.setAttribute("role", "group");
-    container.setAttribute("aria-label", "Filtrar por tipología");
+    const options = [{ value: "", label: "Todas" }];
+    for (const [value, name] of seen) {
+        const credit = creditsByKey.get(getTipologiaKey(name));
+        options.push({
+            value,
+            label: formatTipologiaName(name),
+            className: `has-dot ${tipologiaClass(name)}`,
+            title: credit && Number.isFinite(credit.exigidos)
+                ? `${credit.aprobados} de ${credit.exigidos} créditos aprobados`
+                : undefined
+        });
+    }
+    return options;
+}
 
-    const buttons = [];
+/**
+ * Builds a labeled group of single-choice chips bound to one filter key.
+ *
+ * @param {string} label - Group label.
+ * @param {Array.<{value: string, label: string, className?: string, title?: string}>} options - Chips.
+ * @param {Object} filters - Mutable filter state.
+ * @param {string} key - Filter key the group controls.
+ * @param {function} onChange - Called after the selection changes.
+ * @returns {{el: HTMLElement, paint: function}} Group element and a function to refresh its state.
+ */
+function buildChipGroup(label, options, filters, key, onChange) {
+    const el = document.createElement("div");
+    el.className = "sia-hist-chip-group";
+
+    const title = document.createElement("span");
+    title.className = "sia-hist-chip-group-label";
+    title.textContent = label;
+
+    const chips = document.createElement("div");
+    chips.className = "sia-hist-chips";
+    chips.setAttribute("role", "group");
+    chips.setAttribute("aria-label", label);
+
+    const buttons = options.map((opt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "sia-hist-chip" + (opt.className ? ` ${opt.className}` : "");
+        btn.textContent = opt.label;
+        if (opt.title) btn.title = opt.title;
+        btn.addEventListener("click", () => {
+            // Clicking the active chip again goes back to "all"
+            const next = filters[key] === opt.value ? "" : opt.value;
+            if (next === filters[key]) return;
+            filters[key] = next;
+            onChange();
+        });
+        chips.appendChild(btn);
+        return { btn, value: opt.value };
+    });
+
     const paint = () => buttons.forEach(({ btn, value }) => {
-        const active = filters.componente === value;
+        const active = filters[key] === value;
         btn.classList.toggle("active", active);
         btn.setAttribute("aria-pressed", String(active));
     });
 
-    // "Todas" chip clears the typology filter and is active when none is selected
-    const allBtn = document.createElement("button");
-    allBtn.type = "button";
-    allBtn.className = "sia-hist-chip sia-hist-chip-all sia-tipo-neutral";
-    allBtn.textContent = "Todas";
-    allBtn.addEventListener("click", () => {
-        if (!filters.componente) return;
-        filters.componente = "";
-        paint();
-        onChange();
-    });
-    buttons.push({ btn: allBtn, value: "" });
-    container.appendChild(allBtn);
-
-    for (const [value, name] of seen) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = `sia-hist-chip ${tipologiaClass(name)}`;
-
-        const label = document.createElement("span");
-        label.className = "sia-hist-chip-label";
-        label.textContent = name;
-        btn.appendChild(label);
-
-        const credit = creditsByKey.get(getTipologiaKey(name));
-        if (credit && Number.isFinite(credit.exigidos) && credit.exigidos > 0) {
-            const progress = document.createElement("span");
-            progress.className = "sia-hist-chip-progress";
-            progress.textContent = `${Math.round((credit.aprobados / credit.exigidos) * 100)}%`;
-            btn.title = `${credit.aprobados} de ${credit.exigidos} créditos aprobados`;
-            btn.appendChild(progress);
-        }
-
-        btn.addEventListener("click", () => {
-            filters.componente = filters.componente === value ? "" : value;
-            paint();
-            onChange();
-        });
-        buttons.push({ btn, value });
-        container.appendChild(btn);
-    }
-
-    paint();
-    return container;
+    el.append(title, chips);
+    return { el, paint };
 }
 
 /**
@@ -478,10 +508,14 @@ function buildSubjectCard(asignatura, semestre, retakes) {
     const nameEl = row.querySelector(".sia-asig-row-name");
     nameEl.textContent = asignatura.nombre;
     row.querySelector(".sia-asig-row-meta").textContent = [
-        asignatura.componente,
+        asignatura.componente && formatTipologiaName(asignatura.componente),
         `${asignatura.creditos ?? "?"} créd.`
     ].filter(Boolean).join(" · ");
-    applyTipologiaAccent(row, nameEl, asignatura.componente);
+    // Typology shown only as a dot before the name (no colored border) to keep the list calm
+    if (asignatura.componente) {
+        row.classList.add(tipologiaClass(asignatura.componente));
+        nameEl.classList.add("sia-tipo-name");
+    }
 
     const grade = row.querySelector(".sia-asig-row-grade");
     grade.textContent = asignatura.calificacion != null ? asignatura.calificacion.toFixed(1) : "—";
