@@ -1,239 +1,248 @@
-.sia-semester-wrapper {
-    display: flex;
-    gap: 24px;
-    overflow: auto;
-    padding: 24px 16px;
-    scrollbar-color: #cbd5e0 #f1f5f9;
-    max-height: 70vh;
-    height: fit-content;
-    scroll-behavior: smooth;
-    cursor: grab;
-    scroll-snap-type: x mandatory;
+.sia-semester-header {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 8px 0;
+    text-align: center;
+    letter-spacing: -0.02em;
 }
 
-.sia-semester-wrapper.dragging,
-.sia-semester-wrapper.dragging * {
-    cursor: grabbing;
+/* Stacked, collapsible semesters (no inner scroll: the modal scrolls) */
+.sia-sem-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 16px 8px;
+}
+
+.sia-sem-block {
+    background: white;
+    border: 1px solid #edf2f7;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+    overflow: hidden;
+}
+
+.sia-sem-header {
+    display: flex;
+    align-items: center;
+    gap: 12px 16px;
+    padding: 14px 18px;
+    cursor: pointer;
+    list-style: none;
     user-select: none;
 }
 
-.sia-semester-metrics {
+.sia-sem-header::-webkit-details-marker {
+    display: none;
+}
+
+.sia-sem-header::before {
+    content: "▸";
+    color: #64748b;
+    transition: transform 0.15s;
+}
+
+.sia-sem-block[open] > .sia-sem-header::before {
+    transform: rotate(90deg);
+}
+
+.sia-sem-header:hover {
+    background: #f8fafc;
+}
+
+.sia-sem-header:focus-visible {
+    outline: 2px solid #0f6d59;
+    outline-offset: -2px;
+}
+
+.sia-sem-title-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding: 12px;
-    background: #f1f5f9;
-    border-radius: 14px;
-    font-size: 14px;
-    color: #1e293b;
-    font-weight: 500;
-}
-    
-/* .sia-semester-wrapper::-webkit-scrollbar {
-    height: 8px;
+    align-items: baseline;
+    gap: 4px 10px;
+    flex: 1;
+    min-width: 0;
 }
 
-.sia-semester-wrapper::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 100px;
-}
-
-.sia-semester-wrapper::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
-    border-radius: 100px;
-    transition: background 0.2s;
-}
-
-.sia-semester-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-} */
-
-.sia-semester-column {
-    min-width: 280px;
-    max-width: 320px;
-    background: linear-gradient(145deg, #ffffff, #f8fafc);
-    border-radius: 16px;
-    padding: 20px 16px;
-    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.02);
-    flex-shrink: 0;
-    border: 1px solid rgba(226, 232, 240, 0.6);
-    transition: box-shadow 0.2s ease;
-    height: fit-content;
-    scroll-snap-align: start;
-}
-
-.sia-semester-column:hover {
-    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
-}
-
-.sia-semester-title {
-    margin-bottom: 20px;
-    font-size: 18px;
+.sia-sem-name {
     font-weight: 700;
-    color: #0f172a;
-    letter-spacing: -0.01em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #e2e8f0;
-}
-
-.sia-semester-title::before {
-    content: "📘";
     font-size: 16px;
-    opacity: 0.8;
+    color: #0f172a;
 }
 
-.sia-asignatura-card {
-    background: white;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 12px;
-    border: 1px solid #edf2f7;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-.sia-asignatura-card:hover {
-    transform: translateY(-2px);
-    border-color: #cbd5e0;
-    box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.12);
-    background: #ffffff;
-}
-
-.sia-asig-nombre {
-    font-weight: 700;
-    margin-bottom: 10px;
-    color: #1e293b;
-    font-size: 15px;
-    line-height: 1.5;
-    letter-spacing: -0.01em;
-    padding-right: 4px;
-}
-
-.sia-asig-meta {
+.sia-sem-count {
     font-size: 12px;
     color: #64748b;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0 4px;
-    border-top: 1px dashed #e2e8f0;
-    border-bottom: 1px dashed #e2e8f0;
-    margin-top: 4px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
 }
 
-.sia-asig-meta span:first-child {
-    background: #f1f5f9;
-    padding: 4px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    color: #334155;
-    font-weight: 600;
-}
-
-.sia-asig-meta span:last-child {
-    background: #e6f0ff;
-    padding: 4px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    color: #0f6d59;
-    font-weight: 600;
-}
-
-.sia-asig-estado {
-    margin-top: 12px;
-    font-weight: 700;
-    font-size: 14px;
+.sia-sem-badges {
     display: inline-flex;
-    align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
-    padding: 6px 12px;
-    border-radius: 100px;
-    width: fit-content;
-    letter-spacing: 0.01em;
 }
 
-.sia-asig-estado.aprobada {
-    color: #ffffff;
-    background: linear-gradient(145deg, #0f6d59, #0d5f4d);
-    border: 1px solid rgba(15, 109, 89, 0.3);
-    box-shadow: 0 2px 8px rgba(15, 109, 89, 0.2);
-}
-
-.sia-asig-estado.aprobada::before {
-    content: "✓";
-    font-weight: 800;
-    font-size: 16px;
-}
-
-.sia-asig-estado.reprobada {
-    color: #991b1b;
-    background: linear-gradient(145deg, #fef2f2, #fee2e2);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.sia-asig-estado.reprobada::before {
-    content: "⚠";
-    font-weight: 800;
-    font-size: 16px;
-}
-
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .sia-semester-wrapper {
-        gap: 16px;
-        padding: 16px 12px;
-    }
-    
-    .sia-semester-column {
-        min-width: 260px;
-        padding: 16px 12px;
-    }
-    
-    .sia-asignatura-card {
-        padding: 14px;
-    }
-    
-    .sia-asig-nombre {
-        font-size: 14px;
-    }
-}
-
-/* Optional: Add subtle pattern background for visual interest */
-.sia-semester-column {
-    background-image: radial-gradient(circle at 100% 0%, rgba(241, 245, 249, 0.4) 0%, transparent 50%);
-}
-
-/* Better typography scale */
-.sia-asig-estado {
-    font-size: 13px;
-}
-
-.sia-asig-meta {
+.sia-sem-badge {
     font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 100px;
+    cursor: help;
 }
 
-/* Improve focus states for accessibility */
-.sia-asignatura-card:focus-visible {
-    outline: 2px solid #0f6d59;
-    outline-offset: 2px;
+.sia-sem-badge.failing {
+    background: #fee2e2;
+    color: #991b1b;
 }
 
-/* Add visual indicator for credit count */
-.sia-asig-meta span:first-child::after {
-    content: " 🎓";
-    font-size: 10px;
-    margin-left: 2px;
+.sia-sem-badge.good {
+    background: #dcfce7;
+    color: #166534;
 }
-/* Overall summary bar */
+
+.sia-sem-badge.low {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.sia-sem-badge.muted {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* Same three columns on every semester so values line up vertically */
+.sia-sem-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 92px);
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.sia-sem-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+}
+
+.sia-sem-stat b {
+    font-size: 15px;
+    color: #1e293b;
+    white-space: nowrap;
+}
+
+.sia-sem-stat b.failing {
+    color: #b91c1c;
+}
+
+.sia-sem-stat-label {
+    color: #64748b;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.sia-sem-trend {
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.sia-sem-trend.up {
+    color: #0f6d59;
+}
+
+.sia-sem-trend.down {
+    color: #b91c1c;
+}
+
+/* Subject rows inside a semester */
+.sia-sem-rows {
+    border-top: 1px solid #edf2f7;
+}
+
+.sia-asig-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px 10px 15px;
+    border-left: 3px solid transparent;
+}
+
+.sia-asig-row + .sia-asig-row {
+    border-top: 1px solid #f1f5f9;
+}
+
+.sia-asig-row.aprobada {
+    border-left-color: #0f6d59;
+}
+
+.sia-asig-row.reprobada {
+    border-left-color: #dc2626;
+    background: #fef2f2;
+}
+
+.sia-asig-row-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.sia-asig-row-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    overflow-wrap: anywhere;
+}
+
+.sia-asig-row-meta {
+    flex-basis: 100%;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-asig-row-grade {
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 36px;
+    text-align: right;
+    color: #1e293b;
+}
+
+.sia-asig-row.aprobada .sia-asig-row-grade {
+    color: #0f6d59;
+}
+
+.sia-asig-row.reprobada .sia-asig-row-grade {
+    color: #b91c1c;
+}
+
+@media (max-width: 640px) {
+    .sia-sem-header {
+        padding: 12px 14px;
+    }
+
+    .sia-sem-header {
+        flex-wrap: wrap;
+    }
+
+    .sia-sem-stats {
+        flex-basis: 100%;
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .sia-sem-stat {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .sia-asig-row {
+        padding: 10px 14px 10px 11px;
+    }
+}
+
 .sia-hist-overview {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -248,6 +257,11 @@
 
 .sia-hist-overview .sia-hist-metric-value {
     font-size: 22px;
+}
+
+.sia-hist-overview.filtered {
+    border-color: #cbd5e0;
+    background: #f8fafc;
 }
 
 /* Metrics (shared by the overview and each semester column) */
@@ -280,10 +294,6 @@
     color: #0f6d59;
 }
 
-.sia-semester-metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-}
 
 /* Search and filters */
 .sia-hist-filters {
@@ -327,9 +337,9 @@
 
 /* Retake note on subject cards */
 .sia-asig-retake {
-    margin-top: 10px;
-    padding: 6px 10px;
-    border-radius: 10px;
+    padding: 1px 8px;
+    border-radius: 100px;
+    cursor: help;
     background: #fef9c3;
     color: #713f12;
     font-size: 12px;

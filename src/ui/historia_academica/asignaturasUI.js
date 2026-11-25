@@ -1,46 +1,7 @@
 import { areAsignaturasAvailable, extractAsignaturasFromDom } from "../../scraper/domScraper.js";
 import { saveCachedAsignaturas, loadCachedAsignaturas } from "../../domain/historyManager.js";
 import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
-
-/**
- * Enables mouse drag-to-scroll functionality horizontally on a given container element.
- * Useful for horizontal layouts like semester lists on desktop screens.
- * 
- * @param {HTMLElement} container - The DOM element to apply drag-to-scroll behavior.
- * @returns {void}
- */
-function enableDragScroll(container) {
-    let isDown = false;
-    let startX;
-    let scrollLeft;
-
-    // Track when mouse button is pressed down within the container
-    container.addEventListener("mousedown", (e) => {
-        isDown = true;
-        container.classList.add("dragging");
-        startX = e.pageX - container.offsetLeft;
-        scrollLeft = container.scrollLeft;
-    });
-
-    // Reset status when mouse cursor leaves container boundary
-    container.addEventListener("mouseleave", () => {
-        isDown = false;
-    });
-
-    // Reset status when mouse button is released
-    container.addEventListener("mouseup", () => {
-        isDown = false;
-    });
-
-    // Scroll the container horizontally depending on drag movement distance
-    container.addEventListener("mousemove", (e) => {
-        if (!isDown) return;
-        e.preventDefault();
-        const x = e.pageX - container.offsetLeft;
-        const walk = (x - startX) * 1.2; // Speed multiplier for smooth dragging
-        container.scrollLeft = scrollLeft - walk;
-    });
-}
+import { calculateSemesterGPA } from "../../domain/gpaCalculator.js";
 
 const formatGpa = (v) => (v != null ? v.toFixed(2) : "—");
 
@@ -66,57 +27,145 @@ function metric(label, value, extraClass = "") {
 }
 
 /**
- * Builds the overall summary bar shown above the semesters.
+ * Fills the summary bar above the semesters.
+ * Without filters it shows the whole history (PAPA); while filtering, the same metrics
+ * are recomputed for the subjects currently shown.
  *
- * @param {ReturnType<typeof buildHistorySummary>["overall"]} overall - Overall metrics.
- * @returns {HTMLElement} Summary bar element.
+ * @param {HTMLElement} bar - Summary bar element to fill.
+ * @param {ReturnType<typeof buildHistorySummary>["overall"]} overall - Whole-history metrics.
+ * @param {Array.<Object>|null} shown - Subjects shown while filtering, or null when not filtering.
+ * @returns {void}
  */
-function buildOverviewBar(overall) {
-    const bar = document.createElement("div");
-    bar.className = "sia-hist-overview";
+function renderOverviewBar(bar, overall, shown) {
+    bar.innerHTML = "";
+    bar.classList.toggle("filtered", Boolean(shown));
+
+    let average = overall.papa;
+    let creditosAprobados = overall.creditosAprobados;
+    let reprobadas = overall.reprobadas;
+    let averageLabel = "PAPA";
+
+    if (shown) {
+        average = calculateSemesterGPA(
+            shown.filter((a) => Number.isFinite(a.calificacion)).map((a) => ({ grade: a.calificacion, credits: a.creditos }))
+        ).gpa;
+        creditosAprobados = shown
+            .filter((a) => classifyAsignatura(a) === "aprobada")
+            .reduce((sum, a) => sum + (Number.isFinite(a.creditos) ? a.creditos : 0), 0);
+        reprobadas = shown.filter((a) => classifyAsignatura(a) === "reprobada").length;
+        averageLabel = "Promedio";
+    }
+
+    const avgMetric = metric(averageLabel, formatGpa(average), average != null && average < 3 ? "failing" : "");
+    avgMetric.title = shown
+        ? "Promedio ponderado por créditos de las asignaturas mostradas"
+        : "Promedio aritmético ponderado acumulado de toda la historia";
+
+    // The subject count always goes first, so the bar keeps the same four slots
+    // and, while filtering, the rest reads as "of these subjects"
     bar.append(
-        metric("PAPA", formatGpa(overall.papa), overall.papa != null && overall.papa < 3 ? "failing" : ""),
-        metric("Créditos aprobados", String(overall.creditosAprobados)),
-        metric("Asignaturas reprobadas", String(overall.reprobadas), overall.reprobadas > 0 ? "failing" : "")
+        shown
+            ? metric("Asignaturas mostradas", String(shown.length))
+            : metric("Asignaturas cursadas", String(overall.totalAsignaturas)),
+        avgMetric,
+        metric("Créditos aprobados", String(creditosAprobados)),
+        metric("Asignaturas reprobadas", String(reprobadas), reprobadas > 0 ? "failing" : "")
     );
-    if (overall.best) bar.append(metric(`Mejor semestre · ${overall.best.key}`, formatGpa(overall.best.gpa), "good"));
-    if (overall.worst) bar.append(metric(`Semestre más bajo · ${overall.worst.key}`, formatGpa(overall.worst.gpa)));
-    return bar;
 }
 
 /**
- * Builds the metrics block of a semester column, always with the same fields.
+ * Builds the one-line header of a semester block: name, average with trend, PAPA and credits.
  *
  * @param {ReturnType<typeof buildHistorySummary>["semesters"][number]} s - Semester metrics.
- * @returns {HTMLElement} Metrics element.
+ * @param {number} subjectCount - Number of subjects shown in the block.
+ * @param {boolean} [showStats=true] - Whether to show the semester stats and badges (hidden while filtering).
+ * @param {{best: string|null, worst: string|null}} [highlights] - Keys of the best and lowest semesters.
+ * @returns {HTMLElement} Summary element for the <details> block.
  */
-function buildSemesterMetrics(s) {
-    const metrics = document.createElement("div");
-    metrics.className = "sia-semester-metrics";
+function buildSemesterHeader(s, subjectCount, showStats = true, highlights = {}) {
+    const header = document.createElement("summary");
+    header.className = "sia-sem-header";
 
-    let trendClass = "";
-    let trendText = "";
-    if (s.delta != null && Math.abs(s.delta) >= 0.005) {
-        trendClass = s.delta > 0 ? "up" : "down";
-        trendText = ` ${s.delta > 0 ? "▲" : "▼"} ${Math.abs(s.delta).toFixed(2)}`;
-    }
+    const name = document.createElement("span");
+    name.className = "sia-sem-name";
+    name.textContent = s.key;
 
-    const avg = metric("Promedio del semestre", formatGpa(s.gpa) + trendText, trendClass);
+    const count = document.createElement("span");
+    count.className = "sia-sem-count";
+    // While filtering, the count refers to matching subjects only
+    count.textContent = showStats
+        ? `${subjectCount} asignatura${subjectCount === 1 ? "" : "s"}`
+        : `${subjectCount} coincidencia${subjectCount === 1 ? "" : "s"}`;
+
+    const stats = document.createElement("span");
+    stats.className = "sia-sem-stats";
+
+    const avg = document.createElement("span");
+    avg.className = "sia-sem-stat";
     avg.title = "Promedio ponderado por créditos; la flecha compara con el semestre anterior";
-    const papa = metric("PAPA acumulado", formatGpa(s.papa));
-    papa.title = "Promedio acumulado hasta este semestre (incluido)";
-    metrics.append(
-        avg,
-        papa,
-        metric("Créd. aprobados", String(s.creditosAprobados)),
-        metric("Créd. reprobados", String(s.creditosReprobados), s.creditosReprobados > 0 ? "failing" : "")
-    );
-    if (s.otras > 0) {
-        const other = metric("Créd. sin estado final", String(s.creditosOtros));
-        other.title = "Asignaturas sin estado APROBADA o REPROBADA (por ejemplo, en curso): no cuentan como reprobadas";
-        metrics.append(other);
+    avg.innerHTML = `<b></b><span class="sia-sem-stat-label">Promedio</span>`;
+    avg.querySelector("b").textContent = formatGpa(s.gpa);
+    if (s.gpa != null && s.gpa < 3) avg.querySelector("b").classList.add("failing");
+    if (s.delta != null && Math.abs(s.delta) >= 0.005) {
+        const trend = document.createElement("span");
+        trend.className = "sia-sem-trend " + (s.delta > 0 ? "up" : "down");
+        trend.textContent = `${s.delta > 0 ? "▲" : "▼"}${Math.abs(s.delta).toFixed(2)}`;
+        avg.querySelector("b").appendChild(trend);
     }
-    return metrics;
+
+    const papa = document.createElement("span");
+    papa.className = "sia-sem-stat";
+    papa.title = "Promedio acumulado hasta este semestre (incluido)";
+    papa.innerHTML = `<b></b><span class="sia-sem-stat-label">PAPA</span>`;
+    papa.querySelector("b").textContent = formatGpa(s.papa);
+
+    const credits = document.createElement("span");
+    credits.className = "sia-sem-stat";
+    credits.innerHTML = `<b></b><span class="sia-sem-stat-label">Créd. aprobados</span>`;
+    credits.querySelector("b").textContent = String(s.creditosAprobados);
+
+    stats.append(avg, papa, credits);
+
+    // Exceptions are badges next to the name, so every header keeps the same aligned columns
+    const badges = document.createElement("span");
+    badges.className = "sia-sem-badges";
+    if (s.key === highlights.best) {
+        const best = document.createElement("span");
+        best.className = "sia-sem-badge good";
+        best.textContent = "Mejor semestre";
+        best.title = "Semestre con el promedio más alto";
+        badges.appendChild(best);
+    }
+    if (s.key === highlights.worst) {
+        const worst = document.createElement("span");
+        worst.className = "sia-sem-badge low";
+        worst.textContent = "Semestre más bajo";
+        worst.title = "Semestre con el promedio más bajo";
+        badges.appendChild(worst);
+    }
+    if (s.reprobadas > 0) {
+        const failed = document.createElement("span");
+        failed.className = "sia-sem-badge failing";
+        failed.textContent = `${s.reprobadas} reprobada${s.reprobadas === 1 ? "" : "s"}`;
+        failed.title = `${s.creditosReprobados} créditos reprobados`;
+        badges.appendChild(failed);
+    }
+    if (s.otras > 0) {
+        const other = document.createElement("span");
+        other.className = "sia-sem-badge muted";
+        other.textContent = `${s.otras} sin estado final`;
+        other.title = `${s.creditosOtros} créditos sin estado APROBADA o REPROBADA (por ejemplo, en curso): no cuentan como reprobados`;
+        badges.appendChild(other);
+    }
+
+    const titleGroup = document.createElement("span");
+    titleGroup.className = "sia-sem-title-group";
+    titleGroup.append(name, count);
+    if (showStats && badges.childElementCount > 0) titleGroup.appendChild(badges);
+
+    header.appendChild(titleGroup);
+    if (showStats) header.appendChild(stats);
+    return header;
 }
 
 /**
@@ -149,10 +198,7 @@ export function renderHistoriaAcademica(container) {
     }
 
     const wrapper = document.createElement("div");
-    wrapper.className = "sia-semester-wrapper";
-
-    // Bind horizontal scrolling behaviour
-    enableDragScroll(wrapper);
+    wrapper.className = "sia-sem-list";
 
     const title = document.createElement("h2");
     title.textContent = "Historia Académica por Semestre";
@@ -161,7 +207,9 @@ export function renderHistoriaAcademica(container) {
     container.appendChild(title);
 
     const summary = buildHistorySummary(data);
-    container.appendChild(buildOverviewBar(summary.overall));
+    const overviewBar = document.createElement("div");
+    overviewBar.className = "sia-hist-overview";
+    container.appendChild(overviewBar);
 
     const retakes = findRetakes(data);
     const filters = { text: "", componente: "", estado: "" };
@@ -185,13 +233,25 @@ export function renderHistoriaAcademica(container) {
         return true;
     };
 
+    const highlights = {
+        best: summary.overall.best?.key ?? null,
+        worst: summary.overall.worst?.key ?? null
+    };
+
+    // Only the most recent semester starts open; the user's choices are kept across filter changes
+    const openKeys = new Set(semesterSummaries.length ? [semesterSummaries[0].key] : []);
+    const isFiltering = () => Boolean(filters.text || filters.componente || filters.estado);
+
     const renderColumns = () => {
         wrapper.innerHTML = "";
+        const filtering = isFiltering();
+        const shown = [];
         for (const semesterSummary of semesterSummaries) {
             const semestre = semesterSummary.key;
             const materias = (data[semestre].asignaturas || []).filter(matches);
             // Hide semesters without matching subjects while filtering
             if (materias.length === 0) continue;
+            shown.push(...materias);
 
             // Sort subjects by grade descending, placing ungraded or pending ones (null) at the end
             materias.sort((a, b) => {
@@ -200,22 +260,28 @@ export function renderHistoriaAcademica(container) {
                 return b.calificacion - a.calificacion;
             });
 
-            const column = document.createElement("div");
-            column.className = "sia-semester-column";
+            const block = document.createElement("details");
+            block.className = "sia-sem-block";
+            // While filtering, every semester with matches opens so results are visible
+            block.open = filtering || openKeys.has(semestre);
+            block.addEventListener("toggle", () => {
+                if (isFiltering()) return;
+                if (block.open) openKeys.add(semestre); else openKeys.delete(semestre);
+            });
 
-            const title = document.createElement("h3");
-            title.textContent = semestre;
-            title.className = "sia-semester-title";
+            // Semester stats describe the whole semester, so they are hidden while filtering
+            block.appendChild(buildSemesterHeader(semesterSummary, materias.length, !filtering, highlights));
 
-            column.appendChild(title);
-            column.appendChild(buildSemesterMetrics(semesterSummary));
-
+            const rows = document.createElement("div");
+            rows.className = "sia-sem-rows";
             for (const asignatura of materias) {
-                column.appendChild(buildSubjectCard(asignatura, semestre, retakes));
+                rows.appendChild(buildSubjectCard(asignatura, semestre, retakes));
             }
+            block.appendChild(rows);
 
-            wrapper.appendChild(column);
+            wrapper.appendChild(block);
         }
+        renderOverviewBar(overviewBar, summary.overall, filtering ? shown : null);
         emptyMsg.hidden = wrapper.childElementCount > 0;
         wrapper.hidden = !emptyMsg.hidden;
     };
@@ -268,46 +334,47 @@ function buildFilterBar(data, filters, onChange) {
 }
 
 /**
- * Builds the card of a subject, including a note when it was taken more than once.
+ * Builds the compact row of a subject, with a badge when it was taken more than once.
  *
  * @param {Object} asignatura - Subject record.
  * @param {string} semestre - Semester of this attempt.
  * @param {Map} retakes - Result of findRetakes.
- * @returns {HTMLElement} Card element.
+ * @returns {HTMLElement} Row element.
  */
 function buildSubjectCard(asignatura, semestre, retakes) {
-    const card = document.createElement("div");
-    card.className = "sia-asignatura-card";
+    const row = document.createElement("div");
+    const kind = classifyAsignatura(asignatura);
+    row.className = `sia-asig-row ${kind}`;
 
-    // Normalize state classes to lowercase with hyphens for CSS styling
-    const estadoClass = asignatura.estado
-        ?.toLowerCase()
-        .replace(/\s+/g, "-");
-
-    card.innerHTML = `
-        <div class="sia-asig-nombre"></div>
-        <div class="sia-asig-meta">
-            <span class="sia-asig-creditos"></span>
-            <span class="sia-asig-componente"></span>
-        </div>
-        <div class="sia-asig-estado ${estadoClass || ""}"></div>
+    row.innerHTML = `
+        <span class="sia-asig-row-main">
+            <span class="sia-asig-row-name"></span>
+            <span class="sia-asig-row-meta"></span>
+        </span>
+        <span class="sia-asig-row-grade"></span>
     `;
     // Scraped text is set with textContent to avoid interpreting it as HTML
-    card.querySelector(".sia-asig-nombre").textContent = asignatura.nombre;
-    card.querySelector(".sia-asig-creditos").textContent = `${asignatura.creditos ?? "?"} créditos`;
-    card.querySelector(".sia-asig-componente").textContent = asignatura.componente || "";
-    card.querySelector(".sia-asig-estado").textContent = `${asignatura.calificacion ?? "-"} ${asignatura.estado || ""}`.trim();
+    const nameEl = row.querySelector(".sia-asig-row-name");
+    nameEl.textContent = asignatura.nombre;
+    row.querySelector(".sia-asig-row-meta").textContent = [
+        asignatura.componente,
+        `${asignatura.creditos ?? "?"} créd.`
+    ].filter(Boolean).join(" · ");
+
+    const grade = row.querySelector(".sia-asig-row-grade");
+    grade.textContent = asignatura.calificacion != null ? asignatura.calificacion.toFixed(1) : "—";
+    grade.title = asignatura.estado || "Sin estado final";
 
     const attempts = retakes.get(normalizeHistoryName(asignatura.nombre));
     if (attempts) {
         const index = attempts.findIndex((t) => t.semestre === semestre);
-        const others = attempts.filter((t) => t.semestre !== semestre);
-        const note = document.createElement("div");
-        note.className = "sia-asig-retake";
-        note.textContent = `Intento ${index + 1} de ${attempts.length} · ` + others
+        const badge = document.createElement("span");
+        badge.className = "sia-asig-retake";
+        badge.textContent = `Intento ${index + 1}/${attempts.length}`;
+        badge.title = attempts
             .map((t) => `${t.semestre}: ${t.calificacion ?? "-"} ${t.estado || ""}`.trim())
-            .join(" · ");
-        card.appendChild(note);
+            .join("\n");
+        nameEl.after(badge);
     }
-    return card;
+    return row;
 }
