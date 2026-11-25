@@ -996,3 +996,267 @@
     color: #94a3b8;
     font-weight: 500;
 }
+
+/* Schedule generator */
+.sia-gen {
+    margin: 0 0 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+}
+
+.sia-gen-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 14px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.sia-gen-summary::-webkit-details-marker {
+    display: none;
+}
+
+.sia-gen-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.sia-gen-title::before {
+    content: "▸ ";
+    color: #64748b;
+}
+
+.sia-gen[open] .sia-gen-title::before {
+    content: "▾ ";
+}
+
+.sia-gen-hint {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-gen-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 14px 14px;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 12px;
+}
+
+.sia-gen-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+}
+
+.sia-gen-field,
+.sia-gen-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sia-gen-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.sia-gen-select {
+    font: inherit;
+    font-size: 13px;
+    padding: 5px 8px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    background: white;
+    color: #1e293b;
+}
+
+.sia-gen-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.sia-gen-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #334155;
+    cursor: pointer;
+}
+
+.sia-gen-run,
+.sia-gen-apply {
+    align-self: flex-start;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #1e293b;
+    color: white;
+    cursor: pointer;
+}
+
+.sia-gen-apply {
+    padding: 5px 12px;
+    font-size: 12px;
+}
+
+.sia-gen-link {
+    font: inherit;
+    font-size: 12px;
+    padding: 2px;
+    border: none;
+    background: none;
+    color: #0f6d59;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sia-gen-results {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sia-gen-count {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-gen-option {
+    padding: 10px 12px;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.sia-gen-option-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    align-items: baseline;
+    font-size: 13px;
+    color: #1e293b;
+}
+
+.sia-gen-option-head span {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-gen-option-groups {
+    margin: 6px 0 8px;
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.sia-gen-omitted {
+    color: #b45309;
+}
+
+.sia-gen-option-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sia-gen-more {
+    align-self: flex-start;
+}
+
+.sia-gen-empty {
+    font-size: 13px;
+    color: #475569;
+}
+
+.sia-gen-empty ul {
+    margin: 4px 0 6px;
+    padding-left: 18px;
+}
+
+.sia-gen-undo,
+.sia-gen-preview-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    font-size: 13px;
+    color: #334155;
+}
+
+.sia-gen-preview-bar {
+    margin-bottom: 8px;
+}
+
+.sia-gen-preview-bar[hidden] {
+    display: none;
+}
+
+.sia-gen-alt {
+    color: #94a3b8;
+    cursor: help;
+}
+
+.sia-gen-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-gen-page-btn {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    background: white;
+    color: #334155;
+    cursor: pointer;
+}
+
+.sia-gen-page-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.sia-gen-page-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sia-gen-page-input {
+    width: 52px;
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    text-align: center;
+    color: #1e293b;
+}
+
+.sia-gen-min[hidden] {
+    display: none;
+}
+
+.sia-gen-min-input {
+    width: 80px;
+}

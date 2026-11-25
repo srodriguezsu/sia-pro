@@ -6,84 +6,87 @@ Enlace oficial [Chrome Webstore](https://chromewebstore.google.com/detail/ebcehh
 
 ## Objetivo del Proyecto
 
-SIA UNAL Pro calcula automáticamente el promedio de cada asignatura de los estudiantes de la Universidad Nacional de Colombia (UNAL) mientras navegan por el sistema de calificaciones y estima la calificación mínima necesaria en las actividades pendientes para alcanzar un promedio final de 3.0, facilitando la planificación académica y la toma de decisiones.
-También incorpora un rediseño de la historia académica, presentando de manera clara y organizada el avance del estudiante, las calificaciones por semestre y el progreso por componente curricular.
+SIA UNAL Pro mejora la experiencia del SIA para los estudiantes de la Universidad Nacional de Colombia (UNAL): calcula el promedio de cada asignatura mientras navegas tus calificaciones, proyecta tu PAPA, reorganiza la historia académica, muestra tu avance de carrera y te ayuda a armar un horario sin cruces.
 
 ## Características Principales
 
-### 📊 Cálculo Automático de Promedio & Simulador
-- Calcula el promedio basado en las calificaciones y pesos de cada actividad académica.
-- Permite simular y modificar calificaciones parciales futuras para ver cómo impactan el promedio final de la asignatura.
-- Guarda automáticamente tus simulaciones de manera persistente.
+### Calculadora de promedio
+- Calcula la nota de cada asignatura con las calificaciones y porcentajes de sus actividades.
+- Permite simular notas de actividades pendientes y fijar una **nota objetivo** para saber qué necesitas.
+- Muestra el **PAPA proyectado** si terminas el semestre con esas notas.
+- **Notas nuevas**: detecta las calificaciones que aparecieron o cambiaron desde tu última visita y las marca en la calculadora y en el botón flotante.
 
-### 🎯 Cálculo de Calificación Mínima Requerida
-- Determina la calificación promedio necesaria en actividades pendientes para alcanzar la aprobación (nota de **3.0**).
-- Asume que todas las actividades restantes reciben la misma calificación.
-- Identifica si es matemáticamente posible pasar (muestra un indicador visual con 💀 si es imposible).
+### Historia académica
+- Semestres plegables con PAPA y créditos por semestre, y resumen general.
+- Búsqueda y filtros por estado, tipología y **rango de nota**, con orden por nota, nombre o créditos.
+- **Avisos de situación académica**: si tu PAPA (real o proyectado) se acerca o baja de 3.0, muestra una meta concreta para recuperarlo y explica la regla de reingreso (desde 2.7) según el Estatuto Estudiantil (Acuerdo 008 de 2008).
 
-### 📅 Horarios y Preinscripción
-- Agrega asignaturas al planeador directamente desde la interfaz de "Asignaturas disponibles para cursar" del SIA con un botón "➕ Agregar al Horario".
-- Selecciona diferentes grupos y profesores para cada materia preinscrita.
-- Visualiza la distribución semanal de clases en un calendario visual e interactivo.
-- Detección automática de conflictos de horario: si seleccionas grupos cuyas clases se cruzan, se resalta en el calendario y se muestra una advertencia.
+### Mi carrera
+- Avance de créditos con proyección de semestres restantes.
+- Créditos por tipología (fundamentación, disciplinar, libre elección, trabajo de grado, nivelación), incluyendo los planeados en el horario.
 
-### 📥 Exportación de Datos a CSV
-- Descarga tu información en archivos CSV compatibles con Excel o Google Sheets.
-- Opciones de exportación:
-  - **Historia Académica**: Todo tu avance histórico agrupado por semestre.
-  - **Calificaciones (GPA)**: Listado de notas parciales originales y simuladas.
-  - **Horario simulado**: Detalle de las clases, salones, días y horas de los grupos elegidos.
-- Incluye un diccionario de datos interactivo para entender la estructura de las columnas.
+### Horario
+- Agrega asignaturas desde "Asignaturas disponibles para cursar" con el botón "Agregar al Horario".
+- Elige grupos, ve los prerrequisitos (cumplidos o no) y los cruces de horario en un calendario semanal por tipología.
+- Guarda el calendario en PDF.
+- **Generador de horarios**: crea combinaciones sin cruces según tus preferencias (horas, días libres, profesores a evitar, grupos especiales a excluir, solo grupos con cupos) y, si lo permites, deja asignaturas por fuera respetando una **carga mínima** de créditos. Los resultados se agrupan cuando dan el mismo horario, se pueden ordenar y se navegan por páginas.
 
-### 💾 Caché Persistente Local
-- Almacena de forma segura tu historia académica, créditos y simulaciones en el almacenamiento local de tu navegador (`localStorage`).
-- Evita tener que recargar o raspar los datos cada vez que entras a la extensión.
+### Exportar
+- Descarga historia académica, calificaciones y horario en CSV (Excel o Google Sheets), con diccionario de datos.
+
+### Carga de datos desde cada sección
+- Cuando falta información, cada sección muestra un botón que abre la página correcta del SIA usando su menú: la historia académica se guarda sola, y en Mis calificaciones la extensión abre cada asignatura del periodo y guarda sus notas automáticamente.
+
+### Datos locales y seguridad
+- Los datos guardados quedan asociados a la cuenta del SIA (el usuario que el SIA muestra en la barra superior). Si inicia sesión otra cuenta en el mismo navegador, los datos de la cuenta anterior se borran de inmediato.
+- Todo se guarda en el almacenamiento local de tu navegador (`localStorage`); nada se envía a servidores externos. Ver [privacy.html](privacy.html).
 
 ## Cómo Funciona
 
-1. **Scraping automático**: La extensión detecta el contexto del SIA en el que te encuentras (Calificaciones, Historia Académica, Avance de Créditos o Preinscripción) y extrae de forma segura la información visible.
-2. **Caché y persistencia**: Almacena los datos extraídos localmente para que estén disponibles de forma instantánea en cualquier pestaña o momento.
-3. **Simulador de Horario**: En la interfaz de preinscripción, agrega materias y elige los grupos deseados. El simulador te alertará de cualquier cruce de horario antes de tu cita de inscripción.
-4. **Exportación**: En la pestaña "Exportar", haz clic en los botones correspondientes para descargar tus archivos CSV.
+1. **Lectura automática**: la extensión detecta la página del SIA en la que estás (Mis calificaciones, Historia académica o inscripción) y lee la información visible.
+2. **Datos guardados**: lo leído se guarda localmente para usarlo desde cualquier página del SIA.
+3. **Planeación**: en la inscripción agrega asignaturas al horario y usa el generador para encontrar combinaciones sin cruces.
+4. **Exportación**: en "Exportar" descarga tus CSV.
 
 ## Estructura del Proyecto
 
 ```
 /
-├── dist/                      # Código compilado listo para cargar en Chrome
-├── public/                    # Archivos estáticos y estilos
-│   ├── css/
-│   │   ├── avance.css         # Estilos del avance académico
-│   │   ├── box.css            # Estilos del widget principal
-│   │   ├── export.css         # Estilos del módulo de exportación
-│   │   ├── horario.css        # Estilos del calendario y horario
-│   │   └── required-grade.css # Estilos de calificación mínima requerida
-│   ├── icon.png               # Logotipo
-│   └── manifest.json          # Manifiesto de la extensión (MV3)
+├── dist/                        # Código compilado listo para cargar en Chrome
+├── public/
+│   ├── css/                     # Estilos (tipologías, calculadora, historia, créditos, avance, horario, exportar)
+│   ├── icon.png                 # Logotipo
+│   └── manifest.json            # Manifiesto de la extensión (MV3)
 ├── src/
-│   ├── content/
-│   │   └── index.js           # Script de contenido (punto de entrada)
+│   ├── content/index.js         # Script de contenido (punto de entrada)
 │   ├── domain/
-│   │   ├── gpaCalculator.js   # Lógica del promedio y notas requeridas
-│   │   ├── historiaAcademica.js # Lógica de avance y proyecciones académicas
-│   │   ├── historyManager.js  # Gestor de caché y almacenamiento local
-│   │   └── scheduleManager.js # Gestor de asignaturas y cruces de horario
-│   ├── scraper/
-│   │   └── domScraper.js      # Extracción y parsing del DOM del SIA
+│   │   ├── academicStanding.js  # Umbrales del PAPA y metas de recuperación
+│   │   ├── gpaCalculator.js     # Promedios y notas requeridas
+│   │   ├── historiaAcademica.js # Avance y proyección de semestres
+│   │   ├── historyData.js       # Historia y créditos: de la página o guardados
+│   │   ├── historyManager.js    # Almacenamiento local y notas nuevas
+│   │   ├── identity.js          # Cuenta dueña de los datos guardados
+│   │   ├── historySummary.js    # Resumen por semestre y PAPA proyectado
+│   │   ├── scheduleGenerator.js # Generador de horarios sin cruces
+│   │   └── scheduleManager.js   # Asignaturas del horario y cruces
+│   ├── scraper/domScraper.js    # Extracción del DOM del SIA
 │   ├── ui/
-│   │   ├── historia_academica/
-│   │   │   ├── asignaturasUI.js # Interfaz de asignaturas cursadas
-│   │   │   ├── avanceUI.js      # Renderizado de gráficos de avance
-│   │   │   └── creditosUI.js    # Interfaz de resumen de créditos
-│   │   ├── exportUI.js        # Interfaz de exportación y diccionario CSV
-│   │   ├── gpaUI.js           # Interfaz de simulador de promedio (GPA)
-│   │   ├── horarioUI.js       # Interfaz del calendario semanal
-│   │   └── originalUiInjector.js # Inyección de botones en el SIA original
+│   │   ├── historia_academica/  # Historia, Mi carrera, créditos y avance
+│   │   ├── exportUI.js          # Exportar CSV
+│   │   ├── gpaUI.js             # Calculadora de promedio
+│   │   ├── horarioUI.js         # Horario y calendario semanal
+│   │   ├── newGradesBadge.js    # Contador de notas nuevas
+│   │   ├── originalUiInjector.js# Botones inyectados en el SIA
+│   │   ├── scheduleGeneratorUI.js # Interfaz del generador de horarios
+│   │   └── standingAlert.js     # Avisos de situación académica
 │   └── utils/
-│       └── selectors.js       # Selectores CSS del DOM del SIA
-├── vite.config.js             # Configuración de empaquetado Vite
-├── package.json               # Dependencias del proyecto
-└── README.md                  # Este archivo
+│       ├── selectors.js         # Selectores CSS del SIA
+│       ├── gradesAutoLoader.js  # Carga automática de las notas de cada asignatura
+│       ├── siaNavigation.js     # Navegación por el menú del SIA
+│       └── tipologias.js        # Colores y orden de tipologías
+├── privacy.html                 # Política de privacidad
+├── vite.config.js
+└── package.json
 ```
 
 ## Requisitos
@@ -112,13 +115,13 @@ cd dist && zip -r ../sia-pro.zip . * && cd ..
 ## Uso
 
 1. Inicia sesión en el portal del SIA UNAL.
-2. La extensión inyectará un botón flotante flotante (widget) en la esquina inferior derecha.
+2. La extensión inyectará un botón flotante (widget) en la esquina inferior derecha.
 3. Haz clic en el widget para abrir el panel con pestañas:
-   - **PA**: Simulador de notas parciales de la materia seleccionada.
-   - **Avance**: Gráfico de avance e historial agrupado.
-   - **Créditos**: Progreso por componentes curricular (Fundamentación, Disciplinar, Libre Elección).
-   - **Horario**: Tu planeador y calendario semanal.
-   - **Exportar**: Descarga de reportes CSV y diccionario de datos.
+   - **Calculadora Promedio**: notas por asignatura, simulación, nota objetivo y PAPA proyectado.
+   - **Historia**: semestres, filtros y avisos de situación académica.
+   - **Mi carrera**: avance de créditos, proyección y créditos por tipología.
+   - **Horario**: planeador, calendario semanal y generador de horarios.
+   - **Exportar**: CSV y diccionario de datos.
 
 ## Licencia
 

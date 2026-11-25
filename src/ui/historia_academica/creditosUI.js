@@ -20,7 +20,7 @@ export function renderCreditosProgress(container) {
 
     // If no data exists in DOM or cache, show loading helper
     if (!data || data.length === 0) {
-        container.innerHTML = "<p>No hay historia académica disponible.<br><br>Navega a <b>Información académica > Historia académica</b> para cargar tus datos por primera vez.</p>";
+        container.innerHTML = "<p>No hay historia académica disponible.<br><br>Abre <b>Información académica > Mi historia académica</b> para cargar tus datos por primera vez.</p>";
         return;
     }
 

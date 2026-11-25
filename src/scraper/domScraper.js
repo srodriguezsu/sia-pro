@@ -520,3 +520,36 @@ export function extractAsignaturaParaCursar() {
 
     return scrapedSubject;
 }
+
+/**
+ * SIA username of the session, shown in the top bar of every page.
+ *
+ * @returns {string|null} Username, or null when the bar is not rendered yet.
+ */
+export function extractSessionUsername() {
+    const el = [...document.querySelectorAll(".af_menu_bar-item-text")]
+        .find((e) => !e.closest("#sia-unal-root") && /^[a-z0-9._-]+$/i.test(e.textContent.trim()));
+    return el ? el.textContent.trim() : null;
+}
+
+/**
+ * Reads a read-only field of "Mis datos personales" by its label.
+ *
+ * @param {string} label - Field label, e.g. "Correo institucional:".
+ * @returns {string|null} Field value.
+ */
+function personalField(label) {
+    const l = [...document.querySelectorAll("label.af_inputText_label-text")].find((x) => x.textContent.trim() === label);
+    return l?.closest("table.af_inputText")?.querySelector(".af_inputText_content")?.textContent.trim() || null;
+}
+
+/**
+ * Institutional email and full name from "Mis datos personales", when that page is open.
+ *
+ * @returns {{email: string, name: string|null}|null} Personal data, or null on other pages.
+ */
+export function extractPersonalData() {
+    const email = personalField("Correo institucional:");
+    if (!email || !/@unal\.edu\.co$/i.test(email)) return null;
+    return { email, name: personalField("Nombres y apellidos:") };
+}

@@ -1,3 +1,7 @@
+import { loadNewGrades, markGradesSeen } from "../domain/historyManager.js";
+import { refreshNewGradesBadge } from "./newGradesBadge.js";
+import { createGoToButton } from "../utils/siaNavigation.js";
+import { createStandingAlert } from "./standingAlert.js";
 import { SELECTORS } from "../utils/selectors.js";
 import { tipologiaClass, formatTipologiaName } from "../utils/tipologias.js";
 import { projectPapa, isSameSubjectName } from "../domain/historySummary.js";
@@ -227,7 +231,8 @@ export function renderGpa(container) {
 
     // 3. Fallback if no subjects have been cached
     if (cachedSubjectNames.length === 0) {
-        container.innerHTML = "<p>No hay datos disponibles.<br><br>Navega a <b>Información académica > Mis calificaciones</b> y selecciona una asignatura para comenzar.</p>";
+        container.innerHTML = "<p>No hay datos disponibles.<br><br>Abre <b>Información académica > Mis calificaciones</b> o deja que la extensión cargue automáticamente todas tus asignaturas y semestres (tarda unos segundos; no hagas clic en nada mientras tanto).</p>";
+        container.appendChild(createGoToButton("calificaciones", "gpa", "Cargar mis calificaciones"));
         return;
     }
 
@@ -272,6 +277,9 @@ export function renderGpa(container) {
     };
     const isSimulated = (original, simulated) => Math.abs(simulated - original) > 0.0001;
 
+    // New grades detected since the last visit (marked as seen once their subject is opened here)
+    const unseen = loadNewGrades();
+
     // 6. Two-column layout: semester overview (left) + subject simulator (right).
     // Collapses to a single column on narrow containers (see required-grade.css).
     const layoutWrapper = document.createElement("div");
@@ -285,6 +293,26 @@ export function renderGpa(container) {
     layout.append(semesterColumn, subjectColumn);
     layoutWrapper.appendChild(layout);
     container.appendChild(layoutWrapper);
+
+    // Notice listing subjects with new grades
+    const newGradesNotice = document.createElement("div");
+    newGradesNotice.className = "sia-new-grades";
+    semesterColumn.appendChild(newGradesNotice);
+    const renderNewGradesNotice = () => {
+        const entries = Object.entries(unseen).filter(([name]) => cachedSubjects[name]);
+        newGradesNotice.hidden = entries.length === 0;
+        newGradesNotice.innerHTML = entries.length ? `<div class="sia-new-grades-title">Notas nuevas</div>` : "";
+        entries.forEach(([name, acts]) => {
+            Object.entries(acts).forEach(([description, info]) => {
+                const item = document.createElement("button");
+                item.type = "button";
+                const change = info.previous != null ? ` (antes ${info.previous})` : "";
+                item.textContent = `${name}: ${description} · ${info.grade}${change}`;
+                item.addEventListener("click", () => selectSubject(name));
+                newGradesNotice.appendChild(document.createElement("div")).appendChild(item);
+            });
+        });
+    };
 
     // Semester chips
     const periodBar = document.createElement("div");
@@ -375,6 +403,16 @@ export function renderGpa(container) {
             ${notes.map(n => `<div class="gpa-semester-note">${n}</div>`).join("")}
         `;
 
+        // Standing notice based on the projected PAPA (only when this semester is still open)
+        if (historyData && Object.keys(historyData).length > 0) {
+            const projection = projectPapa(historyData, selectedPeriod, rows.map((r) => ({ name: r.name, grade: r.grade, credits: r.credits })));
+            const standing = projection && createStandingAlert(projection.projected, { projected: true });
+            if (standing) {
+                standing.classList.add("in-calculator");
+                semesterCard.appendChild(standing);
+            }
+        }
+
         const list = semesterCard.querySelector(".gpa-semester-list");
         rows.forEach((r) => {
             const row = document.createElement("button");
@@ -397,6 +435,7 @@ export function renderGpa(container) {
             `;
             const nameEl = row.querySelector(".gpa-semester-row-name");
             nameEl.textContent = r.name;
+            if (unseen[r.name]) nameEl.insertAdjacentHTML("beforeend", `<span class="sia-new-tag">Nueva nota</span>`);
             row.title = r.name; // full name on hover when clamped
             // Evaluated percentage goes first with a fixed width so every row lines up
             const pctEl = row.querySelector(".gpa-semester-row-pct");
@@ -423,10 +462,24 @@ export function renderGpa(container) {
         liveGrades[name] = computeSubjectGrade(name, cachedSubjects[name]);
         renderPeriodBar();
         renderSemesterCard();
+        const fresh = unseen[name];
+        delete unseen[name];
         renderGpaDetails(detailsContainer, name, cachedSubjects[name], (grade, evaluatedWeight) => {
             liveGrades[name] = { grade, evaluatedWeight };
             renderSemesterCard();
         });
+        // Highlight the activities whose grade is new, then mark them as seen
+        if (fresh) {
+            detailsContainer.querySelectorAll(".gpa-calc-grade-label").forEach((label) => {
+                const description = label.firstChild?.textContent;
+                if (description && fresh[description]) {
+                    label.insertAdjacentHTML("beforeend", `<span class="sia-new-tag">Nueva</span>`);
+                }
+            });
+            markGradesSeen(name);
+            refreshNewGradesBadge();
+        }
+        renderNewGradesNotice();
     };
 
     selectSubject(selectedSubject);

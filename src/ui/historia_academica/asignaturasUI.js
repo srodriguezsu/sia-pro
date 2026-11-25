@@ -1,3 +1,6 @@
+import { createGoToButton } from "../../utils/siaNavigation.js";
+import { createStandingAlert } from "../standingAlert.js";
+import { getPlannedCredits } from "../../domain/scheduleManager.js";
 import { getAsignaturas } from "../../domain/historyData.js";
 import { loadCachedCreditos } from "../../domain/historyManager.js";
 import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
@@ -214,7 +217,8 @@ export function renderHistoriaAcademica(container) {
 
     // If no data exists in DOM or cache, show loading helper
     if (!data || Object.keys(data).length === 0) {
-        container.innerHTML = "<p>No hay historia académica disponible.<br><br>Navega a <b>Información académica > Historia académica</b> para cargar tus datos por primera vez.</p>";
+        container.innerHTML = "<p>No hay historia académica disponible.<br><br>Abre <b>Información académica > Mi historia académica</b> para cargar tus datos por primera vez.</p>";
+        container.appendChild(createGoToButton("historia", "historia"));
         return;
     }
 
@@ -231,6 +235,11 @@ export function renderHistoriaAcademica(container) {
     const overviewBar = document.createElement("div");
     overviewBar.className = "sia-hist-overview";
     container.appendChild(overviewBar);
+
+    // Encouraging notice when the PAPA is near or below the statute minimum
+    const planned = getPlannedCredits().total;
+    const standing = createStandingAlert(summary.overall.papa, { nextCredits: planned });
+    if (standing) container.appendChild(standing);
 
     const retakes = findRetakes(data);
     const filters = { text: "", componente: pendingTipologia || "", estado: "", notaMin: 0, notaMax: 5, orden: "" };

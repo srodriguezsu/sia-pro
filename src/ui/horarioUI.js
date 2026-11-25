@@ -5,9 +5,11 @@ import {
     loadSelectedGroups,
     saveSelectedGroups,
     removeSubject,
-    getConflictsForGroup
+    getConflictsForGroup,
+    doSchedulesOverlap
 } from "../domain/scheduleManager.js";
 import { updateButtonState } from "./originalUiInjector.js";
+import { renderScheduleGenerator } from "./scheduleGeneratorUI.js";
 import { isSubjectApproved, loadCachedAsignaturas, loadCachedCreditos } from "../domain/historyManager.js";
 import { isSubjectAdded } from "../domain/scheduleManager.js";
 
@@ -103,6 +105,13 @@ export function renderHorario(container) {
         ${conflictCount > 0 ? `<span class="credits-summary-sep">·</span><span class="credits-summary-conflicts">${conflictCount} con cruce de horario</span>` : ""}
     `;
     configPanel.appendChild(creditsSummary);
+
+    // Schedule generator (the calendar preview is wired once the calendar exists)
+    let previewHandler = () => {};
+    configPanel.appendChild(renderScheduleGenerator(subjects, {
+        onApply: () => renderHorario(container),
+        onPreview: (sel, label) => previewHandler(sel, label)
+    }));
 
     const subjectsList = document.createElement("div");
     subjectsList.className = "sia-horario-subjects-list";
@@ -508,8 +517,30 @@ export function renderHorario(container) {
 
     calendarPanel.appendChild(calendarHeader);
 
-    const calendarGrid = renderCalendarGrid(subjects, selections);
+    let calendarGrid = renderCalendarGrid(subjects, selections);
     calendarPanel.appendChild(calendarGrid);
+
+    // Preview of a generated combination, without saving it
+    const previewBar = document.createElement("div");
+    previewBar.className = "sia-gen-preview-bar";
+    previewBar.hidden = true;
+    calendarPanel.insertBefore(previewBar, calendarGrid);
+    previewHandler = (previewSelections, label) => {
+        const next = renderCalendarGrid(subjects, previewSelections || selections);
+        calendarGrid.replaceWith(next);
+        calendarGrid = next;
+        printBtn.hidden = Boolean(previewSelections);
+        previewBar.hidden = !previewSelections;
+        if (previewSelections) {
+            previewBar.innerHTML = `<span>Vista previa: <b>${label}</b></span>`;
+            const exit = document.createElement("button");
+            exit.type = "button";
+            exit.className = "sia-gen-link";
+            exit.textContent = "Volver a mi horario";
+            exit.addEventListener("click", () => previewHandler(null));
+            previewBar.appendChild(exit);
+        }
+    };
 
     splitView.appendChild(calendarPanel);
     wrapper.appendChild(splitView);
@@ -559,7 +590,12 @@ function renderCalendarGrid(subjects, selections) {
     subjects.forEach((subj) => {
         const selectedGroup = subj.groups?.find(g => g.name === selections[subj.name]);
         if (!selectedGroup || !selectedGroup.horarios) return;
-        const hasConflicts = getConflictsForGroup(subj.name, selectedGroup).length > 0;
+        // Checked against the selections being drawn (they may be a preview, not the saved ones)
+        const hasConflicts = subjects.some((other) => {
+            if (other.name === subj.name) return false;
+            const otherGroup = other.groups?.find((g) => g.name === selections[other.name]);
+            return (otherGroup?.horarios || []).some((a) => (selectedGroup.horarios || []).some((b) => doSchedulesOverlap(a, b)));
+        });
         selectedGroup.horarios.forEach((h) => {
             const start = toMinutes(h.horaInicio);
             const end = toMinutes(h.horaFin);

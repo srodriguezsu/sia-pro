@@ -23,7 +23,8 @@ export const SELECTORS = {
     historyGradeCell: "td.af_column_data-cell.ex-asig-cal.text-center, td.af_column_banded-data-cell.ex-asig-cal.text-center",
 
     // Credits table selectors
-    creditsRow: "#pt1\\:r1\\:0\\:t10\\:\\:db table.af_table_data-table tbody > tr.af_table_data-row",
+    // The region number in the id ("pt1:r1:<n>:t10") changes with how the page was opened
+    creditsRow: "[id^='pt1:r1:'][id$=':t10::db'] table.af_table_data-table tbody > tr.af_table_data-row",
     creditsComponentCell: "td.af_column_data-cell.text-left, td.af_column_banded-data-cell.text-left",
     creditsDataCells: "td.af_column_data-cell.text-center, td.af_column_banded-data-cell.text-center",
 

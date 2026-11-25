@@ -373,3 +373,273 @@
     padding: 12px 16px;
     margin-top: 0;
 }
+
+/* Academic standing notice (shared by Historia and the calculator) */
+.sia-standing {
+    margin: 12px 16px 0;
+    padding: 12px 14px;
+    border: 1px solid #fde68a;
+    border-left: 3px solid #f59e0b;
+    border-radius: 10px;
+    background: #fffbeb;
+    color: #78350f;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.sia-standing-reingreso,
+.sia-standing-sin-reingreso {
+    border-color: #fecaca;
+    border-left-color: #ef4444;
+    background: #fef2f2;
+    color: #7f1d1d;
+}
+
+.sia-standing-title {
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.sia-standing-source {
+    margin-top: 6px;
+    font-size: 11px;
+    opacity: 0.75;
+}
+.sia-standing.in-calculator { margin: 12px 0 0; }
+
+/* Buttons that open a SIA page */
+.sia-goto {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.sia-goto-btn {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border: 1px solid #0f6d59;
+    border-radius: 100px;
+    background: white;
+    color: #0f6d59;
+    cursor: pointer;
+}
+
+.sia-goto-btn:hover {
+    background: #0f6d59;
+    color: white;
+}
+
+.sia-goto-hint {
+    font-size: 12px;
+    color: #b45309;
+}
+
+/* New-grade badge on the floating button */
+.sia-new-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 100px;
+    background: #f2c230; /* logo yellow */
+    color: #1e293b;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px white;
+}
+
+.sia-new-badge[hidden] {
+    display: none;
+}
+
+/* New grades in the calculator */
+.sia-new-tag {
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 100px;
+    background: #fdf1c7; /* soft logo yellow */
+    color: #7a5a00;
+    font-size: 10px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.sia-new-grades {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    font-size: 13px;
+    color: #334155;
+}
+
+.sia-new-grades-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.sia-new-grades button {
+    font: inherit;
+    font-size: 12px;
+    border: none;
+    background: none;
+    padding: 1px 0;
+    color: #0f6d59;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+}
+
+
+
+
+
+/* Short message over SIA (e.g. next step after opening a page) */
+.sia-toast {
+    position: fixed;
+    right: 20px;
+    bottom: 128px;
+    z-index: 1000000;
+    max-width: 320px;
+    padding: 12px 36px 12px 14px;
+    border-radius: 12px;
+    background: #1e293b;
+    color: white;
+    font-size: 13px;
+    line-height: 1.45;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+}
+
+.sia-toast-close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    border: none;
+    background: none;
+    color: #cbd5e1;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.sia-toast-action {
+    display: block;
+    margin-top: 8px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border: none;
+    border-radius: 8px;
+    background: white;
+    color: #1e293b;
+    cursor: pointer;
+}
+
+.sia-toast-status {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #cbd5e1;
+}
+
+/* Loading state over the SIA Pro window while the extension works in SIA */
+.sia-modal-content {
+    position: relative;
+}
+
+.sia-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.97);
+    text-align: center;
+}
+
+.sia-loading[hidden] {
+    display: none;
+}
+
+.sia-loading-spinner {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 8px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #0f6d59;
+    border-radius: 50%;
+    animation: sia-spin 0.8s linear infinite;
+}
+
+.sia-loading.is-error .sia-loading-spinner {
+    display: none;
+}
+
+@keyframes sia-spin {
+    to { transform: rotate(360deg); }
+}
+
+.sia-loading-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.sia-loading-detail {
+    max-width: 420px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.sia-loading-status {
+    min-height: 18px;
+    font-size: 12px;
+    color: #334155;
+}
+
+.sia-loading-close {
+    margin-top: 8px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #1e293b;
+    color: white;
+    cursor: pointer;
+}
+.sia-modal-content.is-loading { overflow: hidden; }
+
+.sia-greeting {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.sia-greeting[hidden] {
+    display: none;
+}
+
+.sia-export-privacy {
+    margin: 4px 0 16px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-export-privacy a {
+    color: #0f6d59;
+    font-weight: 600;
+}

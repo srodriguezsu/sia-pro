@@ -1,14 +1,15 @@
 import {
     loadCachedAsignaturas,
     loadAllGpaCachedSubjects,
-    loadAllGpaSimulations,
-    clearAllExtensionData
+    loadAllGpaSimulations
 } from "../domain/historyManager.js";
 import {
     loadSelectedSubjects,
     loadSelectedGroups
 } from "../domain/scheduleManager.js";
 import { renderGpa } from "./gpaUI.js";
+import { eraseAllExtensionData } from "../domain/identity.js";
+import { refreshNewGradesBadge } from "./newGradesBadge.js";
 import { renderHistoriaAcademica } from "./historia_academica/asignaturasUI.js";
 import { renderMiCarrera } from "./historia_academica/miCarreraUI.js";
 import { renderHorario } from "./horarioUI.js";
@@ -56,6 +57,22 @@ function downloadBlob(content, filename, contentType) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+/** Published privacy policy (GitHub Pages). */
+const PRIVACY_URL = "https://srodriguezsu.github.io/sia-pro/privacy.html";
+
+/**
+ * Re-renders every other tab after the saved data changed (clear or restore).
+ *
+ * @returns {void}
+ */
+function rerenderOtherTabs() {
+    renderHistoriaAcademica(document.getElementById("tab-historia"));
+    renderGpa(document.getElementById("tab-gpa"));
+    renderMiCarrera(document.getElementById("tab-carrera"));
+    renderHorario(document.getElementById("tab-horario"));
+    refreshNewGradesBadge();
 }
 
 /**
@@ -107,10 +124,11 @@ export function renderExportTab(container) {
     exportDiv.innerHTML = `
         <h2 class="sia-export-title">Exportar datos</h2>
         <p class="sia-export-intro">Descarga tu información en CSV (funciona en Excel y Google Sheets).</p>
+        <p class="sia-export-privacy">Todo lo que usa SIA Pro se guarda solo en este navegador, en tu dispositivo: nada se envía a servidores externos. <a href="${PRIVACY_URL}" target="_blank" rel="noopener noreferrer">Política de privacidad</a></p>
 
         <div class="sia-export-list">
             ${exportRow("btn-export-historia", "Historia académica", "Asignaturas cursadas por semestre, con créditos, tipología y nota final.",
-                historiaCount, "asignaturas", "Sin datos: abre <b>Historia académica</b> en el SIA para guardarla.", "Descargar CSV")}
+                historiaCount, "asignaturas", "Sin datos: abre <b>Mi historia académica</b> en el SIA para guardarla.", "Descargar CSV")}
             ${exportRow("btn-export-gpa", "Calificaciones parciales", "Actividades y porcentajes de tus asignaturas, con tus notas reales y las de la calculadora.",
                 gpaCount, "asignaturas", "Sin datos: abre asignaturas en <b>Mis calificaciones</b> para guardarlas.", "Descargar CSV")}
             ${exportRow("btn-export-horario", "Horario", "Asignaturas de tu horario con grupo, profesor, aula y horas.",
@@ -133,7 +151,7 @@ export function renderExportTab(container) {
         <div class="sia-export-danger">
             <div class="sia-export-row-info">
                 <div class="sia-export-row-title">Borrar datos guardados</div>
-                <div class="sia-export-row-desc">Borra la historia, las notas, lo calculado y tu horario guardados por la extensión en este navegador.</div>
+                <div class="sia-export-row-desc">Borra todo lo que la extensión guardó en este navegador: historia, notas, lo calculado, tu horario, preferencias y la cuenta asociada.</div>
             </div>
             <button type="button" id="btn-clear-cache" class="sia-export-clear" ${hasStoredData ? "" : "disabled"}>${hasStoredData ? "Borrar datos" : "No hay datos guardados"}</button>
             <div class="sia-export-confirm" hidden>
@@ -247,7 +265,7 @@ export function renderExportTab(container) {
     }
 
     const btnClearCache = exportDiv.querySelector("#btn-clear-cache");
-    const confirmBox = exportDiv.querySelector(".sia-export-confirm");
+    const confirmBox = exportDiv.querySelector(".sia-export-danger .sia-export-confirm");
     if (btnClearCache && confirmBox) {
         // Inline confirmation instead of the browser's confirm()/alert() dialogs
         btnClearCache.addEventListener("click", () => {
@@ -260,20 +278,9 @@ export function renderExportTab(container) {
             btnClearCache.hidden = false;
         });
         confirmBox.querySelector(".sia-export-confirm-ok").addEventListener("click", () => {
-            clearAllExtensionData();
-
-            // Re-render every tab that shows stored data
-            const tab_historia = document.getElementById("tab-historia");
-            if (tab_historia) renderHistoriaAcademica(tab_historia);
-
-            const tab_gpa = document.getElementById("tab-gpa");
-            if (tab_gpa) renderGpa(tab_gpa);
-
-            const tab_carrera = document.getElementById("tab-carrera");
-            if (tab_carrera) renderMiCarrera(tab_carrera);
-
-            const tab_horario = document.getElementById("tab-horario");
-            if (tab_horario) renderHorario(tab_horario);
+            // Everything, including the account the data was tied to
+            eraseAllExtensionData();
+            rerenderOtherTabs();
 
             // Re-render this tab and show the confirmation message
             renderExportTab(container);

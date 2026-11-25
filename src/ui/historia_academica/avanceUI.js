@@ -347,7 +347,7 @@ export function renderAvanceProgress(container) {
 
     // If no cached or DOM data exists, display helper instructions
     if (!creditos || creditos.length === 0 || !asignaturas || Object.keys(asignaturas).length === 0) {
-        container.innerHTML = "<p>No hay historia académica disponible.<br><br>Navega a <b>Información académica > Historia académica</b> para cargar tus datos por primera vez.</p>";
+        container.innerHTML = "<p>No hay historia académica disponible.<br><br>Abre <b>Información académica > Mi historia académica</b> para cargar tus datos por primera vez.</p>";
         return;
     }
 

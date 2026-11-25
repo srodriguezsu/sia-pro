@@ -11,6 +11,7 @@ export function saveCachedAsignaturas(asignaturas) {
     if (!asignaturas || Object.keys(asignaturas).length === 0) return;
     try {
         localStorage.setItem(STORAGE_KEY_ASIGNATURAS, JSON.stringify(asignaturas));
+        markUpdated("historia");
     } catch (e) {
         console.error("[SIA Pro] Error al guardar asignaturas en caché:", e);
     }
@@ -41,6 +42,7 @@ export function saveCachedCreditos(creditos) {
     if (!creditos || creditos.length === 0) return;
     try {
         localStorage.setItem(STORAGE_KEY_CREDITOS, JSON.stringify(creditos));
+        markUpdated("creditos");
     } catch (e) {
         console.error("[SIA Pro] Error al guardar créditos en caché:", e);
     }
@@ -133,6 +135,8 @@ export function saveGpaCachedSubject(subjectName, activities, meta) {
     if (!subjectName || !activities) return;
     try {
         const subjects = loadAllGpaCachedSubjects();
+        // Compare with the previous copy to detect grades that appeared or changed
+        recordNewGrades(subjectName, subjects[subjectName], activities);
         // Keep only descriptions, percentages, and grade values, ignoring DOM elements
         subjects[subjectName] = activities.map(activity => ({
             description: activity.description,
@@ -140,6 +144,7 @@ export function saveGpaCachedSubject(subjectName, activities, meta) {
             grade: activity.grade
         }));
         localStorage.setItem(STORAGE_KEY_GPA_CACHED_SUBJECTS, JSON.stringify(subjects));
+        markUpdated("calificaciones");
     } catch (e) {
         console.error("[SIA Pro] Error al guardar asignatura GPA en caché:", e);
     }
@@ -319,7 +324,9 @@ export function clearAllExtensionData() {
         STORAGE_KEY_GPA_GOAL_SIMULATIONS,
         "sia_pro_gpa_selected_subject",
         "sia_pro_selected_subjects",
-        "sia_pro_selected_groups"
+        "sia_pro_selected_groups",
+        STORAGE_KEY_UPDATED,
+        STORAGE_KEY_NEW_GRADES
     ];
     keys.forEach(key => {
         try {
@@ -331,3 +338,118 @@ export function clearAllExtensionData() {
 }
 
 
+
+/* =============================
+   LAST UPDATE DATES
+============================= */
+
+const STORAGE_KEY_UPDATED = "sia_pro_updated_at";
+
+/**
+ * Records when a kind of data was last read from SIA.
+ *
+ * @param {"historia"|"creditos"|"calificaciones"} kind - Data kind.
+ * @returns {void}
+ */
+function markUpdated(kind) {
+    try {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEY_UPDATED) || "{}");
+        all[kind] = new Date().toISOString();
+        localStorage.setItem(STORAGE_KEY_UPDATED, JSON.stringify(all));
+    } catch (e) {
+        console.error("[SIA Pro] Error al guardar la fecha de actualización:", e);
+    }
+}
+
+/**
+ * Returns when a kind of data was last read from SIA.
+ *
+ * @param {"historia"|"creditos"|"calificaciones"} kind - Data kind.
+ * @returns {Date|null} Date, or null when unknown (e.g. data saved before this feature).
+ */
+export function getLastUpdated(kind) {
+    try {
+        const value = JSON.parse(localStorage.getItem(STORAGE_KEY_UPDATED) || "{}")[kind];
+        return value ? new Date(value) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/* =============================
+   NEW GRADE DETECTION
+============================= */
+
+const STORAGE_KEY_NEW_GRADES = "sia_pro_new_grades";
+
+/**
+ * Loads the unseen new grades.
+ *
+ * @returns {Object.<string, Object.<string, {grade: number, previous: number|null, detectedAt: string}>>}
+ *   New grades keyed by subject, then by activity description.
+ */
+export function loadNewGrades() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY_NEW_GRADES) || "{}");
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveNewGrades(all) {
+    try {
+        localStorage.setItem(STORAGE_KEY_NEW_GRADES, JSON.stringify(all));
+    } catch (e) {
+        console.error("[SIA Pro] Error al guardar notas nuevas:", e);
+    }
+}
+
+/**
+ * Compares a subject's previous and fresh activities and records grades that appeared or changed.
+ * The first time a subject is saved nothing is flagged (there is nothing to compare with).
+ *
+ * @param {string} subjectName - Subject name.
+ * @param {Array.<Object>|undefined} previous - Previously saved activities.
+ * @param {Array.<Object>} fresh - Freshly scraped activities.
+ * @returns {void}
+ */
+function recordNewGrades(subjectName, previous, fresh) {
+    if (!Array.isArray(previous)) return;
+    const before = new Map(previous.map((a) => [a.description, a.grade]));
+    const all = loadNewGrades();
+    let changed = false;
+    fresh.forEach((a) => {
+        if (!Number.isFinite(a.grade)) return;
+        const old = before.get(a.description);
+        if (Number.isFinite(old) && old === a.grade) return;
+        (all[subjectName] ||= {})[a.description] = {
+            grade: a.grade,
+            previous: Number.isFinite(old) ? old : null,
+            detectedAt: new Date().toISOString()
+        };
+        changed = true;
+    });
+    if (changed) saveNewGrades(all);
+}
+
+/**
+ * Counts the unseen new grades across all subjects.
+ *
+ * @returns {number} Number of new grades.
+ */
+export function countNewGrades() {
+    return Object.values(loadNewGrades()).reduce((sum, acts) => sum + Object.keys(acts).length, 0);
+}
+
+/**
+ * Marks the new grades of a subject as seen.
+ *
+ * @param {string} subjectName - Subject name.
+ * @returns {void}
+ */
+export function markGradesSeen(subjectName) {
+    const all = loadNewGrades();
+    if (!all[subjectName]) return;
+    delete all[subjectName];
+    saveNewGrades(all);
+}
