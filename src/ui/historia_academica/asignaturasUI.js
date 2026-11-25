@@ -1,6 +1,6 @@
 import { areAsignaturasAvailable, extractAsignaturasFromDom } from "../../scraper/domScraper.js";
 import { saveCachedAsignaturas, loadCachedAsignaturas } from "../../domain/historyManager.js";
-import { buildHistorySummary } from "../../domain/historySummary.js";
+import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
 
 /**
  * Enables mouse drag-to-scroll functionality horizontally on a given container element.
@@ -163,62 +163,151 @@ export function renderHistoriaAcademica(container) {
     const summary = buildHistorySummary(data);
     container.appendChild(buildOverviewBar(summary.overall));
 
+    const retakes = findRetakes(data);
+    const filters = { text: "", componente: "", estado: "" };
+    container.appendChild(buildFilterBar(data, filters, () => renderColumns()));
+
+    const emptyMsg = document.createElement("p");
+    emptyMsg.className = "sia-hist-empty";
+    emptyMsg.textContent = "Ninguna asignatura coincide con la búsqueda o los filtros.";
+    emptyMsg.hidden = true;
+    container.appendChild(emptyMsg);
+
     // Most recent semester first
     const semesterSummaries = [...summary.semesters].reverse();
 
-    for (const semesterSummary of semesterSummaries) {
-        const semestre = semesterSummary.key;
-        const semestreData = data[semestre];
-        const materias = [...(semestreData.asignaturas || [])];
+    const matches = (asignatura) => {
+        if (filters.text && !normalizeHistoryName(asignatura.nombre).includes(normalizeHistoryName(filters.text))) return false;
+        if (filters.componente && asignatura.componente !== filters.componente) return false;
+        if (filters.estado === "aprobada" && classifyAsignatura(asignatura) !== "aprobada") return false;
+        if (filters.estado === "reprobada" && classifyAsignatura(asignatura) !== "reprobada") return false;
+        if (filters.estado === "repetida" && !retakes.has(normalizeHistoryName(asignatura.nombre))) return false;
+        return true;
+    };
 
-        // Sort subjects by grade descending, placing ungraded or pending ones (null) at the end
-        materias.sort((a, b) => {
-            if (a.calificacion == null) return 1;
-            if (b.calificacion == null) return -1;
-            return b.calificacion - a.calificacion;
-        });
+    const renderColumns = () => {
+        wrapper.innerHTML = "";
+        for (const semesterSummary of semesterSummaries) {
+            const semestre = semesterSummary.key;
+            const materias = (data[semestre].asignaturas || []).filter(matches);
+            // Hide semesters without matching subjects while filtering
+            if (materias.length === 0) continue;
 
-        const column = document.createElement("div");
-        column.className = "sia-semester-column";
+            // Sort subjects by grade descending, placing ungraded or pending ones (null) at the end
+            materias.sort((a, b) => {
+                if (a.calificacion == null) return 1;
+                if (b.calificacion == null) return -1;
+                return b.calificacion - a.calificacion;
+            });
 
-        const title = document.createElement("h3");
-        title.textContent = semestre;
-        title.className = "sia-semester-title";
+            const column = document.createElement("div");
+            column.className = "sia-semester-column";
 
-        const metrics = buildSemesterMetrics(semesterSummary);
+            const title = document.createElement("h3");
+            title.textContent = semestre;
+            title.className = "sia-semester-title";
 
-        column.appendChild(title);
-        column.appendChild(metrics);
+            column.appendChild(title);
+            column.appendChild(buildSemesterMetrics(semesterSummary));
 
-        // Render cards for each course
-        for (const asignatura of materias) {
-            const card = document.createElement("div");
-            card.className = "sia-asignatura-card";
+            for (const asignatura of materias) {
+                column.appendChild(buildSubjectCard(asignatura, semestre, retakes));
+            }
 
-            // Normalize state classes to lowercase with hyphens for CSS styling
-            const estadoClass = asignatura.estado
-                ?.toLowerCase()
-                .replace(/\s+/g, "-");
-
-            card.innerHTML = `
-                <div class="sia-asig-nombre"></div>
-                <div class="sia-asig-meta">
-                    <span class="sia-asig-creditos"></span>
-                    <span class="sia-asig-componente"></span>
-                </div>
-                <div class="sia-asig-estado ${estadoClass || ""}"></div>
-            `;
-            // Scraped text is set with textContent to avoid interpreting it as HTML
-            card.querySelector(".sia-asig-nombre").textContent = asignatura.nombre;
-            card.querySelector(".sia-asig-creditos").textContent = `${asignatura.creditos ?? "?"} créditos`;
-            card.querySelector(".sia-asig-componente").textContent = asignatura.componente || "";
-            card.querySelector(".sia-asig-estado").textContent = `${asignatura.calificacion ?? "-"} ${asignatura.estado || ""}`.trim();
-
-            column.appendChild(card);
+            wrapper.appendChild(column);
         }
+        emptyMsg.hidden = wrapper.childElementCount > 0;
+        wrapper.hidden = !emptyMsg.hidden;
+    };
 
-        wrapper.appendChild(column);
-    }
-
+    renderColumns();
     container.appendChild(wrapper);
+}
+
+/**
+ * Builds the search box and filter selects above the semesters.
+ *
+ * @param {Object} data - History grouped by semester.
+ * @param {{text: string, componente: string, estado: string}} filters - Mutable filter state.
+ * @param {function} onChange - Called after any filter change.
+ * @returns {HTMLElement} Filter bar element.
+ */
+function buildFilterBar(data, filters, onChange) {
+    const bar = document.createElement("div");
+    bar.className = "sia-hist-filters";
+
+    const search = document.createElement("input");
+    search.type = "search";
+    search.placeholder = "Buscar asignatura…";
+    search.className = "sia-hist-search";
+    search.addEventListener("input", () => { filters.text = search.value.trim(); onChange(); });
+
+    const componentes = [...new Set(
+        Object.values(data).flatMap((s) => (s.asignaturas || []).map((a) => a.componente).filter(Boolean))
+    )].sort((a, b) => a.localeCompare(b));
+
+    const makeSelect = (options, key) => {
+        const select = document.createElement("select");
+        select.className = "sia-hist-select";
+        options.forEach(([value, label]) => select.append(new Option(label, value)));
+        select.addEventListener("change", () => { filters[key] = select.value; onChange(); });
+        return select;
+    };
+
+    bar.append(
+        search,
+        makeSelect([["", "Todas las tipologías"], ...componentes.map((c) => [c, c])], "componente"),
+        makeSelect([
+            ["", "Todos los estados"],
+            ["aprobada", "Aprobadas"],
+            ["reprobada", "Reprobadas"],
+            ["repetida", "Cursadas más de una vez"]
+        ], "estado")
+    );
+    return bar;
+}
+
+/**
+ * Builds the card of a subject, including a note when it was taken more than once.
+ *
+ * @param {Object} asignatura - Subject record.
+ * @param {string} semestre - Semester of this attempt.
+ * @param {Map} retakes - Result of findRetakes.
+ * @returns {HTMLElement} Card element.
+ */
+function buildSubjectCard(asignatura, semestre, retakes) {
+    const card = document.createElement("div");
+    card.className = "sia-asignatura-card";
+
+    // Normalize state classes to lowercase with hyphens for CSS styling
+    const estadoClass = asignatura.estado
+        ?.toLowerCase()
+        .replace(/\s+/g, "-");
+
+    card.innerHTML = `
+        <div class="sia-asig-nombre"></div>
+        <div class="sia-asig-meta">
+            <span class="sia-asig-creditos"></span>
+            <span class="sia-asig-componente"></span>
+        </div>
+        <div class="sia-asig-estado ${estadoClass || ""}"></div>
+    `;
+    // Scraped text is set with textContent to avoid interpreting it as HTML
+    card.querySelector(".sia-asig-nombre").textContent = asignatura.nombre;
+    card.querySelector(".sia-asig-creditos").textContent = `${asignatura.creditos ?? "?"} créditos`;
+    card.querySelector(".sia-asig-componente").textContent = asignatura.componente || "";
+    card.querySelector(".sia-asig-estado").textContent = `${asignatura.calificacion ?? "-"} ${asignatura.estado || ""}`.trim();
+
+    const attempts = retakes.get(normalizeHistoryName(asignatura.nombre));
+    if (attempts) {
+        const index = attempts.findIndex((t) => t.semestre === semestre);
+        const others = attempts.filter((t) => t.semestre !== semestre);
+        const note = document.createElement("div");
+        note.className = "sia-asig-retake";
+        note.textContent = `Intento ${index + 1} de ${attempts.length} · ` + others
+            .map((t) => `${t.semestre}: ${t.calificacion ?? "-"} ${t.estado || ""}`.trim())
+            .join(" · ");
+        card.appendChild(note);
+    }
+    return card;
 }

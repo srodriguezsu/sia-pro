@@ -284,3 +284,54 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
 }
+
+/* Search and filters */
+.sia-hist-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 16px 0;
+}
+
+.sia-hist-search,
+.sia-hist-select {
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 10px;
+    background: white;
+    color: #1e293b;
+}
+
+.sia-hist-search {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.sia-hist-select {
+    flex: 0 1 auto;
+    max-width: 100%;
+}
+
+.sia-hist-search:focus,
+.sia-hist-select:focus {
+    outline: 2px solid #94a3b8;
+    outline-offset: 1px;
+}
+
+.sia-hist-empty {
+    margin: 24px 16px;
+    color: #64748b;
+}
+
+/* Retake note on subject cards */
+.sia-asig-retake {
+    margin-top: 10px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: #fef9c3;
+    color: #713f12;
+    font-size: 12px;
+    font-weight: 500;
+}

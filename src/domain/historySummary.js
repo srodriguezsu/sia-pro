@@ -126,3 +126,41 @@ export function buildHistorySummary(data) {
         }
     };
 }
+
+/**
+ * Normalizes a subject name to compare attempts of the same subject across semesters.
+ *
+ * @param {string|null} name - Subject name.
+ * @returns {string} Accent-free, upper-case, single-spaced name.
+ */
+export function normalizeHistoryName(name) {
+    return (name || "")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
+}
+
+/**
+ * Finds subjects taken more than once and lists their attempts in chronological order.
+ *
+ * @param {Object.<string, {asignaturas: Array.<Object>}>} data - History grouped by semester.
+ * @returns {Map.<string, Array.<{semestre: string, calificacion: number|null, estado: string|null}>>}
+ *   Map from normalized name to its attempts; only subjects with 2+ attempts are included.
+ */
+export function findRetakes(data) {
+    const attempts = new Map();
+    sortSemesterKeys(Object.keys(data || {})).forEach((semestre) => {
+        (data[semestre]?.asignaturas || []).forEach((a) => {
+            const key = normalizeHistoryName(a.nombre);
+            if (!key) return;
+            if (!attempts.has(key)) attempts.set(key, []);
+            attempts.get(key).push({ semestre, calificacion: a.calificacion, estado: a.estado });
+        });
+    });
+    for (const [key, list] of attempts) {
+        if (list.length < 2) attempts.delete(key);
+    }
+    return attempts;
+}
