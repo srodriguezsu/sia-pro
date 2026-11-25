@@ -1,8 +1,8 @@
 import { areAsignaturasAvailable, extractAsignaturasFromDom } from "../../scraper/domScraper.js";
-import { saveCachedAsignaturas, loadCachedAsignaturas } from "../../domain/historyManager.js";
+import { saveCachedAsignaturas, loadCachedAsignaturas, loadCachedCreditos } from "../../domain/historyManager.js";
 import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
 import { calculateSemesterGPA } from "../../domain/gpaCalculator.js";
-import { createTipologiaTag, tipologiaClass, compareTipologias } from "../../utils/tipologias.js";
+import { applyTipologiaAccent, tipologiaClass, compareTipologias, getTipologiaKey } from "../../utils/tipologias.js";
 
 const formatGpa = (v) => (v != null ? v.toFixed(2) : "—");
 
@@ -170,6 +170,36 @@ function buildSemesterHeader(s, subjectCount, showStats = true, highlights = {})
 }
 
 /**
+ * Value used to filter by typology. Typologies are matched by their shared key, so
+ * spellings like "FUND. OBLIGATORIA" and "Fundamentación Obligatoria" select the same subjects.
+ *
+ * @param {string|null} name - Typology name.
+ * @returns {string} Filter value.
+ */
+function tipologiaFilterValue(name) {
+    return getTipologiaKey(name) || `raw:${(name || "").trim().toUpperCase()}`;
+}
+
+/** Typology filter requested from another tab, applied on the next render. */
+let pendingTipologia = null;
+
+/**
+ * Opens the Historia tab already filtered by a typology (used by the credit cards in "Mi carrera").
+ *
+ * @param {string} tipologia - Typology name.
+ * @returns {void}
+ */
+export function openHistoriaWithTipologia(tipologia) {
+    const tabButton = document.querySelector('.sia-tab[data-tab="historia"]');
+    const tabContent = document.getElementById("tab-historia");
+    if (!tabButton || !tabContent) return;
+    pendingTipologia = tipologiaFilterValue(tipologia);
+    tabButton.click();
+    renderHistoriaAcademica(tabContent);
+    tabContent.scrollIntoView({ block: "start" });
+}
+
+/**
  * Renders the semester-grouped academic history overview inside the provided container.
  * Sorts semesters descending (most recent first) and displays subjects/courses inside
  * cards showing metadata like credits, component typology, and final grades.
@@ -213,7 +243,8 @@ export function renderHistoriaAcademica(container) {
     container.appendChild(overviewBar);
 
     const retakes = findRetakes(data);
-    const filters = { text: "", componente: "", estado: "" };
+    const filters = { text: "", componente: pendingTipologia || "", estado: "" };
+    pendingTipologia = null;
     container.appendChild(buildFilterBar(data, filters, () => renderColumns()));
 
     const emptyMsg = document.createElement("p");
@@ -227,7 +258,7 @@ export function renderHistoriaAcademica(container) {
 
     const matches = (asignatura) => {
         if (filters.text && !normalizeHistoryName(asignatura.nombre).includes(normalizeHistoryName(filters.text))) return false;
-        if (filters.componente && asignatura.componente !== filters.componente) return false;
+        if (filters.componente && tipologiaFilterValue(asignatura.componente) !== filters.componente) return false;
         if (filters.estado === "aprobada" && classifyAsignatura(asignatura) !== "aprobada") return false;
         if (filters.estado === "reprobada" && classifyAsignatura(asignatura) !== "reprobada") return false;
         if (filters.estado === "repetida" && !retakes.has(normalizeHistoryName(asignatura.nombre))) return false;
@@ -321,18 +352,11 @@ function buildFilterBar(data, filters, onChange) {
         return select;
     };
 
-    // Typology select uses the shared colors: each option, and the select itself once one is chosen
-    const tipoSelect = makeSelect([["", "Todas las tipologías"], ...componentes.map((c) => [c, c])], "componente");
-    tipoSelect.classList.add("sia-hist-tipo-select");
-    [...tipoSelect.options].forEach((o) => { if (o.value) o.className = `sia-tipo-option ${tipologiaClass(o.value)}`; });
-    const paintTipoSelect = () => {
-        tipoSelect.className = "sia-hist-select sia-hist-tipo-select" + (tipoSelect.value ? ` is-set ${tipologiaClass(tipoSelect.value)}` : "");
-    };
-    tipoSelect.addEventListener("change", paintTipoSelect);
+    // Typology chips: colored like everywhere else, with the credit progress of each typology
+    const chips = buildTipologiaChips(componentes, filters, onChange);
 
     bar.append(
         search,
-        tipoSelect,
         makeSelect([
             ["", "Todos los estados"],
             ["aprobada", "Aprobadas"],
@@ -340,7 +364,93 @@ function buildFilterBar(data, filters, onChange) {
             ["repetida", "Cursadas más de una vez"]
         ], "estado")
     );
-    return bar;
+
+    const wrapperEl = document.createElement("div");
+    wrapperEl.className = "sia-hist-filter-area";
+    wrapperEl.append(bar, chips);
+    return wrapperEl;
+}
+
+/**
+ * Builds the typology chips used as filter. Each chip shows the approved / required credits
+ * of that typology when the credits summary is cached. Clicking an active chip clears it.
+ *
+ * @param {Array.<string>} componentes - Typology names present in the history (ordered).
+ * @param {{componente: string}} filters - Mutable filter state.
+ * @param {function} onChange - Called after the selection changes.
+ * @returns {HTMLElement} Chips container.
+ */
+function buildTipologiaChips(componentes, filters, onChange) {
+    const creditos = loadCachedCreditos() || [];
+    const creditsByKey = new Map();
+    creditos.forEach((c) => {
+        const key = getTipologiaKey(c.componente);
+        if (key) creditsByKey.set(key, c);
+    });
+
+    // One chip per typology value (different spellings of the same typology are merged)
+    const seen = new Map();
+    componentes.forEach((name) => {
+        const value = tipologiaFilterValue(name);
+        if (!seen.has(value)) seen.set(value, name);
+    });
+
+    const container = document.createElement("div");
+    container.className = "sia-hist-chips";
+    container.setAttribute("role", "group");
+    container.setAttribute("aria-label", "Filtrar por tipología");
+
+    const buttons = [];
+    const paint = () => buttons.forEach(({ btn, value }) => {
+        const active = filters.componente === value;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-pressed", String(active));
+    });
+
+    // "Todas" chip clears the typology filter and is active when none is selected
+    const allBtn = document.createElement("button");
+    allBtn.type = "button";
+    allBtn.className = "sia-hist-chip sia-hist-chip-all sia-tipo-neutral";
+    allBtn.textContent = "Todas";
+    allBtn.addEventListener("click", () => {
+        if (!filters.componente) return;
+        filters.componente = "";
+        paint();
+        onChange();
+    });
+    buttons.push({ btn: allBtn, value: "" });
+    container.appendChild(allBtn);
+
+    for (const [value, name] of seen) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `sia-hist-chip ${tipologiaClass(name)}`;
+
+        const label = document.createElement("span");
+        label.className = "sia-hist-chip-label";
+        label.textContent = name;
+        btn.appendChild(label);
+
+        const credit = creditsByKey.get(getTipologiaKey(name));
+        if (credit && Number.isFinite(credit.exigidos) && credit.exigidos > 0) {
+            const progress = document.createElement("span");
+            progress.className = "sia-hist-chip-progress";
+            progress.textContent = `${Math.round((credit.aprobados / credit.exigidos) * 100)}%`;
+            btn.title = `${credit.aprobados} de ${credit.exigidos} créditos aprobados`;
+            btn.appendChild(progress);
+        }
+
+        btn.addEventListener("click", () => {
+            filters.componente = filters.componente === value ? "" : value;
+            paint();
+            onChange();
+        });
+        buttons.push({ btn, value });
+        container.appendChild(btn);
+    }
+
+    paint();
+    return container;
 }
 
 /**
@@ -366,10 +476,11 @@ function buildSubjectCard(asignatura, semestre, retakes) {
     // Scraped text is set with textContent to avoid interpreting it as HTML
     const nameEl = row.querySelector(".sia-asig-row-name");
     nameEl.textContent = asignatura.nombre;
-    const meta = row.querySelector(".sia-asig-row-meta");
-    const tag = createTipologiaTag(asignatura.componente);
-    if (tag) meta.appendChild(tag);
-    meta.appendChild(document.createTextNode(`${asignatura.creditos ?? "?"} créd.`));
+    row.querySelector(".sia-asig-row-meta").textContent = [
+        asignatura.componente,
+        `${asignatura.creditos ?? "?"} créd.`
+    ].filter(Boolean).join(" · ");
+    applyTipologiaAccent(row, nameEl, asignatura.componente);
 
     const grade = row.querySelector(".sia-asig-row-grade");
     grade.textContent = asignatura.calificacion != null ? asignatura.calificacion.toFixed(1) : "—";

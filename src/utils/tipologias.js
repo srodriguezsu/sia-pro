@@ -36,21 +36,6 @@ export function tipologiaClass(name) {
     return `sia-tipo-${getTipologiaKey(name) || "neutral"}`;
 }
 
-/**
- * Creates a small colored tag with the typology name.
- *
- * @param {string|null} name - Typology name.
- * @returns {HTMLElement|null} Tag element, or null when there is no typology.
- */
-export function createTipologiaTag(name) {
-    if (!name || !name.trim()) return null;
-    const tag = document.createElement("span");
-    tag.className = `sia-tipo-tag ${tipologiaClass(name)}`;
-    tag.textContent = name.trim();
-    tag.title = `Tipología: ${name.trim()}`;
-    return tag;
-}
-
 /** Display order of typologies across the UI; unknown typologies go last. */
 const TIPOLOGIA_ORDER = ["nivelacion", "fund-obl", "fund-opt", "libre", "disc-obl", "disc-opt", "trabajo-grado"];
 
@@ -68,4 +53,20 @@ export function compareTipologias(a, b) {
         return i === -1 ? TIPOLOGIA_ORDER.length : i;
     };
     return rank(a) - rank(b) || (a || "").localeCompare(b || "");
+}
+
+/**
+ * Adds the subtle typology accent to a subject row: a colored left border on the row
+ * and a colored dot before its name (see .sia-tipo-accent in tipologias.css).
+ * Rows without a typology are left untouched.
+ *
+ * @param {HTMLElement} row - Row element.
+ * @param {HTMLElement} nameEl - Element holding the subject name.
+ * @param {string|null} name - Typology name.
+ * @returns {void}
+ */
+export function applyTipologiaAccent(row, nameEl, name) {
+    if (!name || !name.trim()) return;
+    row.classList.add("sia-tipo-accent", tipologiaClass(name));
+    nameEl.classList.add("sia-tipo-name");
 }

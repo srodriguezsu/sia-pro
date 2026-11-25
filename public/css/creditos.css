@@ -242,3 +242,24 @@
 .sia-tipologia-colored .sia-tipologia-header h3::before {
     content: none;
 }
+
+/* Typology cards link to Historia filtered by that typology */
+.sia-tipologia-link {
+    cursor: pointer;
+}
+
+.sia-tipologia-link:focus-visible {
+    outline: 2px solid var(--tipo-color);
+    outline-offset: 2px;
+}
+
+.sia-tipologia-cta {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tipo-text);
+}
+
+.sia-tipologia-link:hover .sia-tipologia-cta {
+    text-decoration: underline;
+}

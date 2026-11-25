@@ -1,6 +1,7 @@
 import { areCreditosAvailable, extractCreditosFromDom } from "../../scraper/domScraper.js";
 import { saveCachedCreditos, loadCachedCreditos } from "../../domain/historyManager.js";
 import { tipologiaClass, getTipologiaKey, compareTipologias } from "../../utils/tipologias.js";
+import { openHistoriaWithTipologia } from "./asignaturasUI.js";
 
 /**
  * Renders a visual breakdown of credit progress grouped by academic component/typology.
@@ -116,6 +117,23 @@ export function renderCreditosProgress(container) {
                 <span>Inscritos: ${inscritos} - Faltan: ${pendientes - inscritos} </span>
             </div>
         `;
+
+        // Typology cards open Historia filtered by that typology
+        if (tipoKey) {
+            card.classList.add("sia-tipologia-link");
+            card.setAttribute("role", "button");
+            card.tabIndex = 0;
+            card.title = `Ver las asignaturas de ${componente} en Historia`;
+            const cta = document.createElement("span");
+            cta.className = "sia-tipologia-cta";
+            cta.textContent = "Ver asignaturas →";
+            card.querySelector(".sia-tipologia-metrics").appendChild(cta);
+            const open = () => openHistoriaWithTipologia(componente);
+            card.addEventListener("click", open);
+            card.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+            });
+        }
 
         wrapper.appendChild(card);
     }

@@ -1,5 +1,5 @@
 import { SELECTORS } from "../utils/selectors.js";
-import { createTipologiaTag } from "../utils/tipologias.js";
+import { applyTipologiaAccent } from "../utils/tipologias.js";
 import { calculateCurrentGPA, normalizeSubjectName, calculateSemesterGPA, roundGrade } from "../domain/gpaCalculator.js";
 import {
     extractActivitiesFromDom,
@@ -348,10 +348,11 @@ export function renderGpa(container) {
             // Evaluated percentage goes first with a fixed width so every row lines up
             const pctEl = row.querySelector(".gpa-semester-row-pct");
             pctEl.textContent = `${Math.round(Math.min(r.evaluatedWeight, 1) * 100)}%`;
-            const details = row.querySelector(".gpa-semester-row-details");
-            details.textContent = Number.isFinite(r.credits) ? `${r.credits} créd.` : "créditos ?";
-            const tag = createTipologiaTag(r.typology);
-            if (tag) details.appendChild(tag);
+            row.querySelector(".gpa-semester-row-details").textContent = [
+                Number.isFinite(r.credits) ? `${r.credits} créd.` : "créditos ?",
+                r.typology
+            ].filter(Boolean).join(" · ");
+            applyTipologiaAccent(row, nameEl, r.typology);
             row.addEventListener("click", () => selectSubject(r.name));
             list.appendChild(row);
         });

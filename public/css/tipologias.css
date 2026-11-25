@@ -11,34 +11,6 @@
 .sia-tipo-trabajo-grado { --tipo-color: #0d9488; --tipo-text: #115e59; --tipo-soft: #ccfbf1; }
 .sia-tipo-neutral       { --tipo-color: #94a3b8; --tipo-text: #475569; --tipo-soft: #f1f5f9; }
 
-/* Tag: soft background, colored dot and readable text */
-.sia-tipo-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    max-width: 100%;
-    padding: 1px 8px;
-    border-radius: 100px;
-    background: var(--tipo-soft);
-    color: var(--tipo-text);
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.6;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    vertical-align: middle;
-}
-
-.sia-tipo-tag::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--tipo-color);
-    flex-shrink: 0;
-}
-
 /* Small dot to place next to a title */
 .sia-tipo-dot {
     display: inline-block;
@@ -47,4 +19,20 @@
     border-radius: 50%;
     background: var(--tipo-color);
     flex-shrink: 0;
+}
+
+/* Subtle accent for subject rows: colored left border + dot before the name, text stays neutral */
+.sia-tipo-accent.sia-tipo-accent {
+    border-left: 4px solid var(--tipo-color);
+}
+
+.sia-tipo-accent .sia-tipo-name::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--tipo-color);
+    vertical-align: 0.1em;
 }
