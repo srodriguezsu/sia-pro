@@ -1,4 +1,5 @@
-import { tipologiaClass, compareTipologias } from "../utils/tipologias.js";
+import { tipologiaClass, compareTipologias, getTipologiaKey } from "../utils/tipologias.js";
+import { findApprovedAttempt } from "../domain/historySummary.js";
 import {
     loadSelectedSubjects,
     loadSelectedGroups,
@@ -7,7 +8,7 @@ import {
     getConflictsForGroup
 } from "../domain/scheduleManager.js";
 import { updateButtonState } from "./originalUiInjector.js";
-import { isSubjectApproved, loadCachedAsignaturas } from "../domain/historyManager.js";
+import { isSubjectApproved, loadCachedAsignaturas, loadCachedCreditos } from "../domain/historyManager.js";
 import { isSubjectAdded } from "../domain/scheduleManager.js";
 
 /**
@@ -108,6 +109,16 @@ export function renderHorario(container) {
     const subjectsList = document.createElement("div");
     subjectsList.className = "sia-horario-subjects-list";
 
+    // Academic history and credits by typology, used to warn while planning
+    const planningHistory = loadCachedAsignaturas();
+    const remainingByTipo = new Map();
+    (loadCachedCreditos() || []).forEach((c) => {
+        const key = getTipologiaKey(c.componente);
+        if (!key || !Number.isFinite(c.pendientes)) return;
+        // Same "Faltan" as the credit cards: pending credits not covered by current enrollment
+        remainingByTipo.set(key, Math.max(0, c.pendientes - (c.inscritos || 0)));
+    });
+
     // Group subjects by typology
     const subjectsByTypology = {};
     subjects.forEach((subject) => {
@@ -142,11 +153,33 @@ export function renderHorario(container) {
 
         const formattedTipoName = tipo.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
         
+        const remaining = remainingByTipo.get(getTipologiaKey(tipo));
+        const hasRemaining = Number.isFinite(remaining);
+        const exceeds = hasRemaining && selectedCreditsForTipo > remaining;
+        const creditsText = hasRemaining
+            ? `${selectedCreditsForTipo} / ${remaining} ${remaining === 1 ? "crédito" : "créditos"}`
+            : `${selectedCreditsForTipo} ${selectedCreditsForTipo === 1 ? "crédito" : "créditos"}`;
+
         sectionHeader.innerHTML = `
             <h4 class="sia-horario-typology-title"><span class="sia-tipo-dot"></span>${formattedTipoName}</h4>
-            <span class="sia-horario-typology-credits">${selectedCreditsForTipo} ${selectedCreditsForTipo === 1 ? 'crédito' : 'créditos'}</span>
+            <span class="sia-horario-typology-credits${exceeds ? " exceeds" : ""}"></span>
         `;
+        const creditsBadge = sectionHeader.querySelector(".sia-horario-typology-credits");
+        creditsBadge.textContent = creditsText;
+        creditsBadge.title = hasRemaining
+            ? `${selectedCreditsForTipo} créditos planeados de ${remaining} que te faltan en esta tipología`
+            : "Créditos planeados (con grupo seleccionado)";
         section.appendChild(sectionHeader);
+
+        if (exceeds) {
+            const warning = document.createElement("div");
+            warning.className = "sia-horario-warning";
+            const extra = selectedCreditsForTipo - remaining;
+            warning.textContent = remaining === 0
+                ? `Ya no te faltan créditos de ${formattedTipoName}: estos ${selectedCreditsForTipo} créditos no sumarían a esta tipología.`
+                : `Planeas ${extra} ${extra === 1 ? "crédito" : "créditos"} más de los que te faltan en ${formattedTipoName} (${remaining}).`;
+            section.appendChild(warning);
+        }
 
         const sectionBody = document.createElement("div");
         sectionBody.className = "sia-horario-typology-body";
@@ -164,6 +197,17 @@ export function renderHorario(container) {
                 </div>
                 <button class="remove-subject-btn" title="Eliminar asignatura">🗑️</button>
             `;
+
+            // Warn when the subject was already approved according to the academic history
+            const approvedAttempt = findApprovedAttempt(planningHistory, subject.name);
+            if (approvedAttempt) {
+                const approvedBadge = document.createElement("span");
+                approvedBadge.className = "subject-item-approved";
+                approvedBadge.textContent = `Ya la aprobaste · ${approvedAttempt.semestre}${approvedAttempt.calificacion != null ? ` · ${approvedAttempt.calificacion.toFixed(1)}` : ""}`;
+                approvedBadge.title = "Esta asignatura aparece como APROBADA en tu historia académica";
+                header.querySelector(".subject-item-info").appendChild(approvedBadge);
+                item.classList.add("is-approved");
+            }
 
             // Bind remove event
             header.querySelector(".remove-subject-btn").addEventListener("click", () => {

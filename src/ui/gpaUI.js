@@ -1,5 +1,6 @@
 import { SELECTORS } from "../utils/selectors.js";
 import { applyTipologiaAccent } from "../utils/tipologias.js";
+import { projectPapa } from "../domain/historySummary.js";
 import { calculateCurrentGPA, normalizeSubjectName, calculateSemesterGPA, roundGrade } from "../domain/gpaCalculator.js";
 import {
     extractActivitiesFromDom,
@@ -14,7 +15,8 @@ import {
     loadAllGpaCachedSubjects,
     loadAllGpaSubjectMeta,
     loadGoalSimulationForSubject,
-    saveGoalSimulationForSubject
+    saveGoalSimulationForSubject,
+    loadCachedAsignaturas
 } from "../domain/historyManager.js";
 
 /**
@@ -288,6 +290,43 @@ export function renderGpa(container) {
         });
     };
 
+    // Academic history (final grades) used to project the PAPA with this semester's grades
+    const historyData = loadCachedAsignaturas();
+
+    /**
+     * Shows the PAPA the student would have after finishing the selected semester
+     * with the current (or simulated) grades. Hidden for semesters already graded in the history.
+     * @param {HTMLElement} el - Projection container.
+     * @param {Array.<Object>} rows - Semester rows (name, grade, credits).
+     */
+    const renderPapaProjection = (el, rows) => {
+        if (!historyData || Object.keys(historyData).length === 0) {
+            el.className = "gpa-papa-projection hint";
+            el.innerHTML = "Abre <b>Información académica &gt; Historia académica</b> para ver cómo quedaría tu PAPA con estas notas.";
+            return;
+        }
+        const projection = projectPapa(historyData, selectedPeriod, rows.map((r) => ({ name: r.name, grade: r.grade, credits: r.credits })));
+        if (!projection || projection.projected == null) {
+            el.remove();
+            return;
+        }
+        const { current, projected } = projection;
+        let deltaHtml = "";
+        if (current != null) {
+            const delta = projected - current;
+            const cls = delta > 0.005 ? "up" : delta < -0.005 ? "down" : "";
+            const arrow = cls === "up" ? "▲" : cls === "down" ? "▼" : "±";
+            deltaHtml = `<span class="gpa-papa-projection-delta ${cls}">${arrow}${Math.abs(delta).toFixed(2)}</span>
+                <span class="gpa-papa-projection-current">PAPA actual ${current.toFixed(2)}</span>`;
+        }
+        el.title = "PAPA acumulado si terminas este semestre con las notas actuales o simuladas";
+        el.innerHTML = `
+            <span class="gpa-papa-projection-label">PAPA proyectado al terminar el semestre</span>
+            <span class="gpa-papa-projection-value ${projected < 3 ? "failing" : ""}">${projected.toFixed(2)}</span>
+            ${deltaHtml}
+        `;
+    };
+
     const renderSemesterCard = () => {
         const names = groups[selectedPeriod];
         const rows = names.map((name) => ({
@@ -318,9 +357,12 @@ export function renderGpa(container) {
                     <span class="gpa-semester-original${semesterSimulated ? "" : " is-hidden"}" title="Promedio real sin simulaciones">${semesterSimulated ? formatOriginalDelta(originalGpa, gpa, 2) : "&nbsp;"}</span>
                 </div>
             </div>
+            <div class="gpa-papa-projection"></div>
             <div class="gpa-semester-list"></div>
             ${notes.map(n => `<div class="gpa-semester-note">${n}</div>`).join("")}
         `;
+
+        renderPapaProjection(semesterCard.querySelector(".gpa-papa-projection"), rows);
 
         const list = semesterCard.querySelector(".gpa-semester-list");
         rows.forEach((r) => {

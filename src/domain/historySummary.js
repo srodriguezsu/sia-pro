@@ -164,3 +164,83 @@ export function findRetakes(data) {
     }
     return attempts;
 }
+
+/**
+ * Extracts "YYYY-T" from a period or semester key ("2025-1S", "2025-1S Ordinaria" → "2025-1").
+ *
+ * @param {string|null} key - Period or semester key.
+ * @returns {string|null} Normalized year-term, or null.
+ */
+function yearTerm(key) {
+    const m = (key || "").match(/(\d{4})\s*-\s*(\d)/);
+    return m ? `${m[1]}-${m[2]}` : null;
+}
+
+/**
+ * Projects the PAPA after the given period, combining the final grades of the academic history
+ * with the (possibly simulated) grades of the calculator for that period.
+ * Only applies to periods still in progress: if the history already has final grades for that
+ * period, it returns null to avoid counting the same subjects twice.
+ *
+ * @param {Object.<string, {asignaturas: Array.<Object>}>|null} historyData - Academic history.
+ * @param {string} period - Calculator period key (e.g. "2025-1S").
+ * @param {Array.<{name: string, grade: number, credits: number|null}>} currentSubjects - Calculator subjects of that period.
+ * @returns {{current: number|null, projected: number|null}|null} Current and projected PAPA, or null when not applicable.
+ */
+export function projectPapa(historyData, period, currentSubjects) {
+    if (!historyData || Object.keys(historyData).length === 0) return null;
+    const term = yearTerm(period);
+    if (!term) return null;
+
+    const currentNames = new Set(currentSubjects.map((s) => normalizeHistoryName(s.name)));
+    const graded = [];
+    let periodHasFinalGrades = false;
+
+    Object.entries(historyData).forEach(([semestre, s]) => {
+        const samePeriod = yearTerm(semestre) === term;
+        (s?.asignaturas || []).forEach((a) => {
+            if (!Number.isFinite(a.calificacion)) return;
+            if (samePeriod) {
+                periodHasFinalGrades = true;
+                // Skip the history copy of a subject the calculator already covers
+                if (currentNames.has(normalizeHistoryName(a.nombre))) return;
+            }
+            graded.push({ grade: a.calificacion, credits: a.creditos });
+        });
+    });
+
+    if (periodHasFinalGrades) return null;
+
+    const current = calculateSemesterGPA(graded).gpa;
+    const projected = calculateSemesterGPA([
+        ...graded,
+        ...currentSubjects.map((s) => ({ grade: s.grade, credits: s.credits }))
+    ]).gpa;
+    return { current, projected };
+}
+
+/**
+ * Finds the approved attempt of a subject in the academic history, matching by exact
+ * normalized name or by the code in "Name (CODE)" identifiers.
+ *
+ * @param {Object.<string, {asignaturas: Array.<Object>}>|null} historyData - Academic history.
+ * @param {string} identifier - Subject name, optionally with its code in parentheses.
+ * @returns {{semestre: string, calificacion: number|null}|null} Approved attempt, or null.
+ */
+export function findApprovedAttempt(historyData, identifier) {
+    if (!historyData || !identifier) return null;
+    const codeMatch = identifier.match(/\(([^)]+)\)\s*$/);
+    const code = codeMatch ? normalizeHistoryName(codeMatch[1]) : null;
+    const name = normalizeHistoryName(identifier.replace(/\([^)]*\)\s*$/, ""));
+
+    for (const semestre of sortSemesterKeys(Object.keys(historyData))) {
+        for (const a of historyData[semestre]?.asignaturas || []) {
+            if (classifyAsignatura(a) !== "aprobada") continue;
+            const n = normalizeHistoryName(a.nombre);
+            if ((name && n === name) || (code && n.includes(code))) {
+                return { semestre, calificacion: a.calificacion };
+            }
+        }
+    }
+    return null;
+}

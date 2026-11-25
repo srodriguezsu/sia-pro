@@ -716,3 +716,31 @@
     align-items: center;
     gap: 8px;
 }
+
+/* Planning warnings (history + credits by typology) */
+.sia-horario-typology-credits.exceeds {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.sia-horario-warning {
+    margin: -4px 0 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.subject-item-approved {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
