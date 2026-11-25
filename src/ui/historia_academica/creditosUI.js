@@ -1,6 +1,5 @@
-import { areCreditosAvailable, extractCreditosFromDom } from "../../scraper/domScraper.js";
-import { saveCachedCreditos, loadCachedCreditos } from "../../domain/historyManager.js";
-import { tipologiaClass, getTipologiaKey, compareTipologias } from "../../utils/tipologias.js";
+import { getCreditos } from "../../domain/historyData.js";
+import { tipologiaClass, getTipologiaKey, compareTipologias, formatTipologiaName } from "../../utils/tipologias.js";
 import { openHistoriaWithTipologia } from "./asignaturasUI.js";
 import { getPlannedCredits } from "../../domain/scheduleManager.js";
 
@@ -16,16 +15,8 @@ export function renderCreditosProgress(container) {
     if (!container) return;
     container.innerHTML = "";
     
-    let data = null;
-
-    // Try to scrape first if currently viewing the history page
-    if (areCreditosAvailable()) {
-        data = extractCreditosFromDom();
-        saveCachedCreditos(data);
-    } else {
-        // Fallback to loaded cache
-        data = loadCachedCreditos();
-    }
+    // Scraped from the page when possible, otherwise the saved copy
+    const data = getCreditos();
 
     // If no data exists in DOM or cache, show loading helper
     if (!data || data.length === 0) {
@@ -37,7 +28,7 @@ export function renderCreditosProgress(container) {
     wrapper.className = "sia-tipologias-wrapper";
 
     const title = document.createElement("h2");
-    title.textContent = "Créditos por Tipología";
+    title.textContent = "Créditos por tipología";
     title.className = "sia-tipologias-header";
 
     container.appendChild(title);
@@ -57,18 +48,35 @@ export function renderCreditosProgress(container) {
         return nombre !== "TOTAL" && nombre !== "TOTAL ESTUDIANTE";
     });
 
-    // 🔹 Sort standard components in the shared typology order (Nivelación, Fundamentación, Libre elección, Disciplinar, Trabajo de grado, others)
+    // 🔹 Sort standard components in the shared typology order (Fundamentación, Disciplinar, Libre elección, Trabajo de grado, Nivelación, others)
     normales.sort((a, b) => compareTipologias(a.componente, b.componente));
-
-    // 🔹 Rebuild final sorted array placing standard components first, followed by totals
-    const orderedData = [
-        ...normales,
-        ...(total ? [total] : []),
-        ...(totalEstudiante ? [totalEstudiante] : [])
-    ];
 
     // Credits planned in Horario, shown as a third segment on each typology bar
     const planned = getPlannedCredits();
+
+    // Totals are a summary line instead of two more cards
+    const totalsLine = document.createElement("div");
+    totalsLine.className = "sia-tipologias-totals";
+    [[total, "Total del plan"], [totalEstudiante, "Total estudiante"]].forEach(([t, label]) => {
+        if (!t) return;
+        const item = document.createElement("span");
+        const pctT = t.exigidos ? Math.round((t.aprobados / t.exigidos) * 100) : 0;
+        item.innerHTML = `<span class="sia-tipologias-totals-label"></span> <b></b> <span class="sia-tipologias-totals-meta"></span>`;
+        item.querySelector(".sia-tipologias-totals-label").textContent = label;
+        item.querySelector("b").textContent = `${t.aprobados} / ${t.exigidos} créd.`;
+        const plannedTotal = label === "Total del plan" ? planned.total : 0;
+        item.querySelector(".sia-tipologias-totals-meta").textContent = [
+            `${pctT}%`,
+            `${t.inscritos} inscritos`,
+            plannedTotal > 0 ? `${plannedTotal} planeados` : null,
+            `faltan ${Math.max(0, t.pendientes - t.inscritos)}`
+        ].filter(Boolean).join(" · ");
+        totalsLine.appendChild(item);
+    });
+    if (totalsLine.childElementCount > 0) container.appendChild(totalsLine);
+
+    const orderedData = normales;
+
 
     // Render credit typologies overview cards
     for (const item of orderedData) {
@@ -104,34 +112,31 @@ export function renderCreditosProgress(container) {
         const tipoKey = getTipologiaKey(componente);
         card.className = "sia-tipologia-card" + (tipoKey ? ` sia-tipologia-colored ${tipologiaClass(componente)}` : "");
 
+        // One header line, the bar, and one grey line of numbers (no nested boxes)
+        const faltan = Math.max(0, pendientes - inscritos);
         card.innerHTML = `
             <div class="sia-tipologia-header">
-                <h3>${tipoKey ? '<span class="sia-tipo-dot"></span>' : ""}${componente}</h3>
-                <span class="sia-tipologia-percent">
-                    ${Math.round(porcentajeAprobado)}%
-                </span>
+                <h3>${tipoKey ? '<span class="sia-tipo-dot"></span>' : ""}<span class="sia-tipologia-name"></span></h3>
+                <span class="sia-tipologia-percent">${Math.round(porcentajeAprobado)}%</span>
             </div>
 
             <div class="sia-progress-bar">
                 ${planeados > 0 ? `<div class="sia-progress-planeado" style="width: ${porcentajeConPlaneados}%" title="Incluye ${planeados} créditos planeados en Horario"></div>` : ""}
-                <div 
-                    class="sia-progress-aprobado"
-                    style="width: ${porcentajeAprobado}%"
-                ></div>
-                <div 
-                    class="sia-progress-inscrito"
-                    style="width: ${porcentajeConInscritos}%"
-                >
-                    <span>${Math.round(porcentajeConInscritos)}%</span>
-                </div>
+                <div class="sia-progress-aprobado" style="width: ${porcentajeAprobado}%"></div>
+                <div class="sia-progress-inscrito" style="width: ${porcentajeConInscritos}%" title="${Math.round(porcentajeConInscritos)}% con lo inscrito"></div>
             </div>
 
             <div class="sia-tipologia-metrics">
-                <span><strong>${aprobados}</strong> / ${exigidos} créditos</span>
-                <span>Inscritos: ${inscritos} - Faltan: ${pendientes - inscritos} </span>
-                ${planeados > 0 ? `<span class="sia-tipologia-planned">Planeados en Horario: ${planeados}</span>` : ""}
+                <span class="sia-tipologia-numbers"></span>
             </div>
         `;
+        card.querySelector(".sia-tipologia-name").textContent = formatTipologiaName(componente);
+        card.querySelector(".sia-tipologia-numbers").textContent = [
+            `${aprobados} / ${exigidos} créd.`,
+            inscritos > 0 ? `${inscritos} inscritos` : null,
+            planeados > 0 ? `${planeados} planeados` : null,
+            `faltan ${faltan}`
+        ].filter(Boolean).join(" · ");
 
         // Typology cards open Historia filtered by that typology
         if (tipoKey) {

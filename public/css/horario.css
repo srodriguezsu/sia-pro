@@ -965,3 +965,34 @@
 .sia-horario-print-btn:hover {
     box-shadow: none;
 }
+
+/* Prerequisite status on the toggle, visible even when collapsed */
+.subject-prereq-toggle::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    flex-shrink: 0;
+}
+
+.subject-prereq-toggle[data-state="met"] {
+    color: #64748b;
+}
+
+.subject-prereq-toggle[data-state="met"]::before {
+    background: #0f6d59;
+}
+
+.subject-prereq-toggle[data-state="unmet"] {
+    color: #b91c1c;
+}
+
+.subject-prereq-toggle[data-state="unmet"]::before {
+    background: #ef4444;
+}
+
+.subject-prereq-toggle[data-state="unknown"] {
+    color: #94a3b8;
+    font-weight: 500;
+}

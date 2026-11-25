@@ -115,8 +115,10 @@ export function extractAsignaturasFromDom() {
  * @returns {boolean} True if at least one academic history row is found, false otherwise.
  */
 export function areAsignaturasAvailable() {
-    const asignaturasRaw = document.querySelectorAll(SELECTORS.historyRow);
-    return asignaturasRaw.length > 0;
+    // The row class is generic in SIA (every ADF table uses it), so also require the
+    // semester column, which only exists in the academic history table
+    const rows = document.querySelectorAll(SELECTORS.historyRow);
+    return [...rows].some((row) => row.querySelector(SELECTORS.historySemesterCell));
 }
 
 /**

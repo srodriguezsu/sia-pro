@@ -285,3 +285,103 @@
     font-size: 13px;
     color: #64748b;
 }
+
+/* ===== Calmer layout (same principles as Historia) ===== */
+.sia-tipologias-header {
+    font-size: 18px;
+}
+
+/* Totals as one summary line */
+.sia-tipologias-totals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #edf2f7;
+    font-size: 13px;
+    color: #1e293b;
+}
+
+.sia-tipologias-totals-label,
+.sia-tipologias-totals-meta {
+    color: #64748b;
+}
+
+.sia-tipologias-wrapper {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    padding: 16px 0 0;
+}
+
+/* Cards: light border, no shadow or hover lift */
+.sia-tipologia-card {
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: none;
+    gap: 10px;
+}
+
+.sia-tipologia-card:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #cbd5e0;
+}
+
+.sia-tipologia-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.sia-tipologia-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.sia-tipologia-percent,
+.sia-tipologia-colored .sia-tipologia-percent {
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    background: none;
+    padding: 0;
+}
+
+.sia-progress-bar {
+    height: 8px;
+    margin-bottom: 0;
+    border: none;
+    box-shadow: none;
+}
+
+/* Numbers as one grey line, no inner box or pills */
+.sia-tipologia-metrics {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-tipologia-metrics span:last-child {
+    font-weight: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+}
+
+.sia-tipologia-metrics span.sia-tipologia-cta:last-child {
+    margin-left: auto;
+    color: var(--tipo-text);
+    font-weight: 600;
+}

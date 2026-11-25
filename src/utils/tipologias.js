@@ -37,11 +37,11 @@ export function tipologiaClass(name) {
 }
 
 /** Display order of typologies across the UI; unknown typologies go last. */
-const TIPOLOGIA_ORDER = ["nivelacion", "fund-obl", "fund-opt", "libre", "disc-obl", "disc-opt", "trabajo-grado"];
+const TIPOLOGIA_ORDER = ["fund-obl", "fund-opt", "disc-obl", "disc-opt", "libre", "trabajo-grado", "nivelacion"];
 
 /**
- * Comparator that orders typology names: Nivelación, Fundamentación (obligatoria, optativa), Libre elección,
- * Disciplinar (obligatoria, optativa), Trabajo de grado, then uncategorized (alphabetically).
+ * Comparator that orders typology names: Fundamentación (obligatoria, optativa), Disciplinar (obligatoria, optativa),
+ * Libre elección, Trabajo de grado, Nivelación, then uncategorized (alphabetically).
  *
  * @param {string|null} a - Typology name.
  * @param {string|null} b - Typology name.

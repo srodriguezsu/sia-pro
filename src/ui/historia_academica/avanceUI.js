@@ -1,21 +1,12 @@
 import { getPlannedCredits } from "../../domain/scheduleManager.js";
 import { detectOngoingSemester } from "../../domain/historySummary.js";
+import { getAsignaturas, getCreditos } from "../../domain/historyData.js";
 import {
     buildProgressData,
     calcularPromedioPorSemestre,
     proyectarSemestres
 } from "../../domain/historiaAcademica.js";
 import {
-    areAsignaturasAvailable,
-    areCreditosAvailable,
-    extractAsignaturasFromDom,
-    extractCreditosFromDom
-} from "../../scraper/domScraper.js";
-import {
-    saveCachedAsignaturas,
-    loadCachedAsignaturas,
-    saveCachedCreditos,
-    loadCachedCreditos,
     loadAllGpaCachedSubjects,
     loadAllGpaSubjectMeta
 } from "../../domain/historyManager.js";
@@ -48,8 +39,8 @@ function renderChart(container, progressData, proyeccion, totalExigidos) {
     const btnContainer = document.createElement("div");
     btnContainer.className = "sia-chart-tabs";
     btnContainer.innerHTML = `
-        <button class="sia-chart-tab-btn active" data-metric="credits">Créditos Acumulados</button>
-        <button class="sia-chart-tab-btn" data-metric="papa">Evolución del PAPA</button>
+        <button type="button" class="sia-chart-tab-btn active" data-metric="credits">Créditos</button>
+        <button type="button" class="sia-chart-tab-btn" data-metric="papa">PAPA</button>
     `;
     container.appendChild(btnContainer);
 
@@ -97,26 +88,27 @@ function renderChart(container, progressData, proyeccion, totalExigidos) {
                             label: "Avance",
                             data: dataReal,
                             borderColor: "#0f6d59",
-                            backgroundColor: "rgba(15,109,89,0.1)",
-                            borderWidth: 3,
+                            backgroundColor: "rgba(15,109,89,0.06)",
+                            borderWidth: 2,
                             tension: 0.3,
                             fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
                             pointBackgroundColor: "#0f6d59"
                         },
                         {
                             label: "Proyección",
                             data: dataProy,
-                            borderColor: "#f3c231",
-                            backgroundColor: "rgba(243,194,49,0.1)",
+                            // Projection in grey dashes: an estimate, not a second data series
+                            borderColor: "#94a3b8",
+                            backgroundColor: "transparent",
                             borderDash: [5, 5],
-                            borderWidth: 3,
+                            borderWidth: 2,
                             tension: 0.3,
-                            fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7,
-                            pointBackgroundColor: "#f3c231"
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: "#94a3b8"
                         }
                     ]
                 },
@@ -177,10 +169,10 @@ function renderChart(container, progressData, proyeccion, totalExigidos) {
                             },
                             title: {
                                 display: true,
-                                text: 'Créditos Acumulados',
+                                text: 'Créditos acumulados',
                                 font: {
                                     size: 13,
-                                    weight: 'bold'
+                                    weight: '600'
                                 }
                             }
                         },
@@ -200,7 +192,7 @@ function renderChart(container, progressData, proyeccion, totalExigidos) {
                                 text: 'Semestre',
                                 font: {
                                     size: 13,
-                                    weight: 'bold'
+                                    weight: '600'
                                 }
                             }
                         }
@@ -221,12 +213,12 @@ function renderChart(container, progressData, proyeccion, totalExigidos) {
                             label: "PAPA",
                             data: dataPapa,
                             borderColor: "#0f6d59",
-                            backgroundColor: "rgba(15,109,89,0.1)",
-                            borderWidth: 3,
+                            backgroundColor: "rgba(15,109,89,0.06)",
+                            borderWidth: 2,
                             tension: 0.2,
                             fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
                             pointBackgroundColor: "#0f6d59"
                         }
                     ]
@@ -291,7 +283,7 @@ function renderChart(container, progressData, proyeccion, totalExigidos) {
                                 text: 'PAPA',
                                 font: {
                                     size: 13,
-                                    weight: 'bold'
+                                    weight: '600'
                                 }
                             }
                         },
@@ -311,7 +303,7 @@ function renderChart(container, progressData, proyeccion, totalExigidos) {
                                 text: 'Semestre',
                                 font: {
                                     size: 13,
-                                    weight: 'bold'
+                                    weight: '600'
                                 }
                             }
                         }
@@ -349,20 +341,9 @@ export function renderAvanceProgress(container) {
     if (!container) return;
     container.innerHTML = "";
 
-    let creditos = null;
-    let asignaturas = null;
-
-    // Try to scrape first if currently viewing the history page
-    if (areAsignaturasAvailable() && areCreditosAvailable()) {
-        creditos = extractCreditosFromDom();
-        asignaturas = extractAsignaturasFromDom();
-        saveCachedCreditos(creditos);
-        saveCachedAsignaturas(asignaturas);
-    } else {
-        // Fallback to loaded cache
-        creditos = loadCachedCreditos();
-        asignaturas = loadCachedAsignaturas();
-    }
+    // Scraped from the page when possible, otherwise the saved copies
+    const creditos = getCreditos();
+    const asignaturas = getAsignaturas();
 
     // If no cached or DOM data exists, display helper instructions
     if (!creditos || creditos.length === 0 || !asignaturas || Object.keys(asignaturas).length === 0) {
@@ -415,7 +396,7 @@ export function renderAvanceProgress(container) {
 
     // Create container elements
     const title = document.createElement("h2");
-    title.textContent = "Proyección de Avance Académico";
+    title.textContent = "Proyección de avance";
     title.className = "sia-avance-header";
 
     // Chart container
@@ -423,11 +404,12 @@ export function renderAvanceProgress(container) {
     chartContainer.className = "sia-chart-container";
 
     // Detailed table container
-    const tableContainer = document.createElement("div");
+    const tableContainer = document.createElement("details");
     tableContainer.className = "sia-progress-table-container";
 
-    const tableTitle = document.createElement("h3");
-    tableTitle.textContent = "Detalle por Semestre";
+    // Detail table is collapsible: the chart and the key figures already answer the main question
+    const tableTitle = document.createElement("summary");
+    tableTitle.textContent = "Ver detalle por semestre";
     tableTitle.className = "sia-progress-table-title";
 
     const table = document.createElement("table");
@@ -437,9 +419,9 @@ export function renderAvanceProgress(container) {
         <thead>
             <tr>
                 <th>Semestre</th>
-                <th>Créditos del Semestre</th>
-                <th>Créditos Acumulados</th>
-                <th>% del Total</th>
+                <th>Créditos del semestre</th>
+                <th>Créditos acumulados</th>
+                <th>% del total</th>
                 <th>PAPA</th>
             </tr>
         </thead>
@@ -498,8 +480,32 @@ export function renderAvanceProgress(container) {
         tableContainer.appendChild(note);
     }
 
+    // Key figures: the answer to "how far am I?" before any chart
+    const lastReal = progressData.at(-1).acumulado;
+    const pct = Math.round((lastReal / totalExigidos) * 100);
+    const remainingSemesters = proyeccion.length;
+    const keyFigures = document.createElement("div");
+    keyFigures.className = "sia-avance-key";
+    keyFigures.innerHTML = `
+        <div class="sia-avance-key-item"><b></b><span>créditos aprobados</span></div>
+        <div class="sia-avance-key-item"><b></b><span>del plan</span></div>
+        <div class="sia-avance-key-item"><b></b><span></span></div>
+    `;
+    const [k1, k2, k3] = keyFigures.querySelectorAll(".sia-avance-key-item");
+    k1.querySelector("b").textContent = `${lastReal} / ${totalExigidos}`;
+    k2.querySelector("b").textContent = `${pct}%`;
+    if (remainingSemesters > 0) {
+        k3.querySelector("b").textContent = `≈ ${remainingSemesters}`;
+        k3.querySelector("span").textContent = remainingSemesters === 1 ? "semestre para graduarte" : "semestres para graduarte";
+        k3.title = "Estimado con tus créditos en curso, lo planeado en Horario y tu promedio de créditos por semestre";
+    } else {
+        k3.querySelector("b").textContent = "✓";
+        k3.querySelector("span").textContent = "créditos completos";
+    }
+
     // Append child components to main view container
     container.appendChild(title);
+    container.appendChild(keyFigures);
     container.appendChild(chartContainer);
     container.appendChild(tableContainer);
 

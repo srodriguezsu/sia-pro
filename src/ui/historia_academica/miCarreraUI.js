@@ -1,7 +1,6 @@
 import { renderCreditosProgress } from "./creditosUI.js";
 import { renderAvanceProgress } from "./avanceUI.js";
-import { areCreditosAvailable } from "../../scraper/domScraper.js";
-import { loadCachedCreditos } from "../../domain/historyManager.js";
+import { getCreditos } from "../../domain/historyData.js";
 
 /**
  * Renders the "Mi carrera" tab: academic progress projection followed by a card with credits by typology.
@@ -14,8 +13,8 @@ export function renderMiCarrera(container) {
     container.innerHTML = "";
 
     // Both sections depend on the academic history; show a single helper message when it is missing
-    const cached = loadCachedCreditos();
-    if (!areCreditosAvailable() && (!cached || cached.length === 0)) {
+    const creditos = getCreditos();
+    if (!creditos || creditos.length === 0) {
         container.innerHTML = "<p>No hay historia académica disponible.<br><br>Navega a <b>Información académica > Historia académica</b> para cargar tus datos por primera vez.</p>";
         return;
     }

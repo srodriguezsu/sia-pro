@@ -498,3 +498,34 @@
     outline: 2px solid #0f6d59;
     outline-offset: 2px;
 }
+
+/* Grade range filter */
+.sia-hist-grade-range {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-hist-grade-input {
+    width: 64px;
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 100px;
+    background: white;
+    color: #1e293b;
+    text-align: center;
+}
+
+.sia-hist-grade-input:focus {
+    outline: 2px solid #94a3b8;
+    outline-offset: 1px;
+}
+
+.sia-hist-grade-range.active .sia-hist-grade-input {
+    border-color: #1e293b;
+    font-weight: 600;
+}

@@ -90,118 +90,58 @@ export function renderExportTab(container) {
     const exportDiv = document.createElement("div");
     exportDiv.className = "sia-export-container";
 
+    const hasStoredData = historiaCount > 0 || gpaCount > 0 || scheduleCount > 0;
+
+    // A plain list of downloads; empty states are grey notes, not warnings
+    const exportRow = (id, title, desc, count, countLabel, emptyNote, buttonLabel) => `
+        <div class="sia-export-row">
+            <div class="sia-export-row-info">
+                <div class="sia-export-row-title">${title}</div>
+                <div class="sia-export-row-desc">${desc}</div>
+                <div class="sia-export-row-count">${count > 0 ? `${count} ${countLabel}` : emptyNote}</div>
+            </div>
+            <button type="button" id="${id}" class="sia-export-btn" ${count === 0 ? "disabled" : ""}>${buttonLabel}</button>
+        </div>
+    `;
+
     exportDiv.innerHTML = `
-        <h2 class="sia-export-title">📥 Exportar Datos en CSV</h2>
-        <p style="font-size:14px;color:#475569;margin-bottom:24px;">
-            Descarga la información académica que has acumulado y raspado del SIA en formato CSV (compatible con Excel y Google Sheets).
-        </p>
+        <h2 class="sia-export-title">Exportar datos</h2>
+        <p class="sia-export-intro">Descarga tu información en CSV (funciona en Excel y Google Sheets).</p>
 
-        <div class="sia-export-grid">
-            <!-- Historia Académica Card -->
-            <div class="sia-export-card">
-                <div>
-                    <div class="sia-export-card-title">📖 Historia Académica</div>
-                    <div class="sia-export-card-desc">
-                        Asignaturas cursadas históricamente, agrupadas por semestres con sus respectivos créditos, calificaciones finales y tipologías.
-                    </div>
-                </div>
-                <div>
-                    ${historiaCount === 0 ? `
-                        <div class="sia-export-alert warning">
-                            <span>⚠️ No hay datos guardados. Visita la sección <b>Historia académica</b> en el SIA para extraerla automáticamente.</span>
-                        </div>
-                    ` : `
-                        <p style="font-size:12px;color:#0f6d59;font-weight:600;margin-bottom:12px;">✓ ${historiaCount} asignaturas encontradas en caché</p>
-                    `}
-                    <button id="btn-export-historia" class="sia-export-btn" ${historiaCount === 0 ? "disabled" : ""}>
-                        Descargar Historia Académica
-                    </button>
-                </div>
-            </div>
-
-            <!-- Calificaciones Parciales Card -->
-            <div class="sia-export-card">
-                <div>
-                    <div class="sia-export-card-title">📊 Calificaciones Parciales</div>
-                    <div class="sia-export-card-desc">
-                        Desglose de notas parciales de asignaturas activas (evaluaciones y porcentajes), incluyendo tus calificaciones reales y las simulaciones del promedio.
-                    </div>
-                </div>
-                <div>
-                    ${gpaCount === 0 ? `
-                        <div class="sia-export-alert warning">
-                            <span>⚠️ No hay calificaciones en caché. Visita <b>Mis calificaciones</b> y abre asignaturas para guardarlas.</span>
-                        </div>
-                    ` : `
-                        <p style="font-size:12px;color:#0f6d59;font-weight:600;margin-bottom:12px;">✓ ${gpaCount} asignaturas encontradas en caché</p>
-                    `}
-                    <button id="btn-export-gpa" class="sia-export-btn" ${gpaCount === 0 ? "disabled" : ""}>
-                        Descargar Calificaciones Parciales
-                    </button>
-                </div>
-            </div>
-
-            <!-- Horario Seleccionado Card -->
-            <div class="sia-export-card">
-                <div>
-                    <div class="sia-export-card-title">🗓️ Horario & Preinscripción</div>
-                    <div class="sia-export-card-desc">
-                        Asignaturas seleccionadas en tu horario propuesto, detallando grupos, profesores, aulas y rangos de horarios en días de clase.
-                    </div>
-                </div>
-                <div>
-                    ${scheduleCount === 0 ? `
-                        <div class="sia-export-alert warning">
-                            <span>⚠️ No has agregado asignaturas al horario. Busca una disponible en el SIA y haz clic en "Agregar al horario".</span>
-                        </div>
-                    ` : `
-                        <p style="font-size:12px;color:#0f6d59;font-weight:600;margin-bottom:12px;">✓ ${scheduleCount} asignaturas en el horario</p>
-                    `}
-                    <button id="btn-export-horario" class="sia-export-btn" ${scheduleCount === 0 ? "disabled" : ""}>
-                        Descargar Horario Proyectado
-                    </button>
-                </div>
-            </div>
-
-            <!-- Limpiar Caché Card -->
-            <div class="sia-export-card">
-                <div>
-                    <div class="sia-export-card-title">🗑️ Limpiar Caché y Datos</div>
-                    <div class="sia-export-card-desc">
-                        Borra toda la información guardada localmente por la extensión (historial, notas parciales, simulaciones y horario seleccionado).
-                    </div>
-                </div>
-                <div>
-                    ${(historiaCount === 0 && gpaCount === 0 && scheduleCount === 0) ? `
-                        <div class="sia-export-alert success">
-                            <span>✓ El almacenamiento local de la extensión está limpio.</span>
-                        </div>
-                    ` : `
-                        <p style="font-size:12px;color:#b45309;font-weight:600;margin-bottom:12px;">⚠️ Hay datos guardados en caché local</p>
-                    `}
-                    <button id="btn-clear-cache" class="sia-export-btn danger" ${(historiaCount === 0 && gpaCount === 0 && scheduleCount === 0) ? "disabled" : ""}>
-                        Limpiar Datos Guardados
-                    </button>
-                </div>
-            </div>
+        <div class="sia-export-list">
+            ${exportRow("btn-export-historia", "Historia académica", "Asignaturas cursadas por semestre, con créditos, tipología y nota final.",
+                historiaCount, "asignaturas", "Sin datos: abre <b>Historia académica</b> en el SIA para guardarla.", "Descargar CSV")}
+            ${exportRow("btn-export-gpa", "Calificaciones parciales", "Actividades y porcentajes de tus asignaturas, con tus notas reales y las de la calculadora.",
+                gpaCount, "asignaturas", "Sin datos: abre asignaturas en <b>Mis calificaciones</b> para guardarlas.", "Descargar CSV")}
+            ${exportRow("btn-export-horario", "Horario", "Asignaturas de tu horario con grupo, profesor, aula y horas.",
+                scheduleCount, "asignaturas", "Sin datos: agrega asignaturas desde la inscripción en el SIA.", "Descargar CSV")}
         </div>
 
-        <!-- Data Dictionary Section -->
-        <div class="sia-dict-section">
-            <div class="sia-dict-title">📘 Diccionario de Datos</div>
-            <p style="font-size:13px;color:#64748b;margin-bottom:16px;">
-                Selecciona una pestaña para ver el significado y tipo de dato de las columnas incluidas en cada uno de los archivos CSV descargados.
-            </p>
+        <details class="sia-dict-section">
+            <summary class="sia-dict-title">Ver qué contiene cada archivo</summary>
             <div class="sia-dict-tabs">
-                <button class="sia-dict-tab-btn active" data-dict="historia">Historia Académica</button>
-                <button class="sia-dict-tab-btn" data-dict="gpa">Calificaciones Parciales</button>
-                <button class="sia-dict-tab-btn" data-dict="horario">Horario & Preinscripción</button>
+                <button type="button" class="sia-dict-tab-btn active" data-dict="historia">Historia académica</button>
+                <button type="button" class="sia-dict-tab-btn" data-dict="gpa">Calificaciones parciales</button>
+                <button type="button" class="sia-dict-tab-btn" data-dict="horario">Horario</button>
             </div>
             <div class="sia-dict-table-container">
-                <table id="sia-dict-table-el" class="sia-dict-table">
-                    <!-- Rendered dynamically -->
-                </table>
+                <table id="sia-dict-table-el" class="sia-dict-table"></table>
             </div>
+        </details>
+
+        <!-- Destructive action, apart from the downloads, with an inline confirmation -->
+        <div class="sia-export-danger">
+            <div class="sia-export-row-info">
+                <div class="sia-export-row-title">Borrar datos guardados</div>
+                <div class="sia-export-row-desc">Borra la historia, las notas, lo calculado y tu horario guardados por la extensión en este navegador.</div>
+            </div>
+            <button type="button" id="btn-clear-cache" class="sia-export-clear" ${hasStoredData ? "" : "disabled"}>${hasStoredData ? "Borrar datos" : "No hay datos guardados"}</button>
+            <div class="sia-export-confirm" hidden>
+                <span>¿Seguro? Esto no se puede deshacer.</span>
+                <button type="button" class="sia-export-confirm-cancel">Cancelar</button>
+                <button type="button" class="sia-export-confirm-ok">Borrar todo</button>
+            </div>
+            <div class="sia-export-cleared" hidden>Listo: se borraron los datos guardados.</div>
         </div>
     `;
 
@@ -236,7 +176,7 @@ export function renderExportTab(container) {
     const btnGpa = exportDiv.querySelector("#btn-export-gpa");
     if (btnGpa) {
         btnGpa.addEventListener("click", () => {
-            const headers = ["Asignatura", "Actividad", "Porcentaje", "Calificación Original", "Calificación Simulada"];
+            const headers = ["Asignatura", "Actividad", "Porcentaje", "Calificación Original", "Calificación Estimada"];
             const rows = [];
             Object.keys(gpaCached).forEach(subjectName => {
                 const activities = gpaCached[subjectName];
@@ -307,38 +247,45 @@ export function renderExportTab(container) {
     }
 
     const btnClearCache = exportDiv.querySelector("#btn-clear-cache");
-    if (btnClearCache) {
+    const confirmBox = exportDiv.querySelector(".sia-export-confirm");
+    if (btnClearCache && confirmBox) {
+        // Inline confirmation instead of the browser's confirm()/alert() dialogs
         btnClearCache.addEventListener("click", () => {
-            const confirmed = confirm("¿Estás seguro de que deseas borrar toda la caché y datos guardados de la extensión?\n\nEsto eliminará:\n- Tu historial académico raspado\n- El desglose de créditos y avance\n- Las notas parciales y simulaciones GPA\n- Las materias seleccionadas en tu horario\n\nEsta acción no se puede deshacer.");
-            if (confirmed) {
-                clearAllExtensionData();
+            btnClearCache.hidden = true;
+            confirmBox.hidden = false;
+            confirmBox.querySelector(".sia-export-confirm-cancel").focus();
+        });
+        confirmBox.querySelector(".sia-export-confirm-cancel").addEventListener("click", () => {
+            confirmBox.hidden = true;
+            btnClearCache.hidden = false;
+        });
+        confirmBox.querySelector(".sia-export-confirm-ok").addEventListener("click", () => {
+            clearAllExtensionData();
 
-                // Re-render current tab
-                renderExportTab(container);
+            // Re-render every tab that shows stored data
+            const tab_historia = document.getElementById("tab-historia");
+            if (tab_historia) renderHistoriaAcademica(tab_historia);
 
-                // Re-render other tabs if elements are in the DOM
-                const tab_historia = document.getElementById("tab-historia");
-                if (tab_historia) renderHistoriaAcademica(tab_historia);
+            const tab_gpa = document.getElementById("tab-gpa");
+            if (tab_gpa) renderGpa(tab_gpa);
 
+            const tab_carrera = document.getElementById("tab-carrera");
+            if (tab_carrera) renderMiCarrera(tab_carrera);
 
-                const tab_gpa = document.getElementById("tab-gpa");
-                if (tab_gpa) renderGpa(tab_gpa);
+            const tab_horario = document.getElementById("tab-horario");
+            if (tab_horario) renderHorario(tab_horario);
 
-                const tab_carrera = document.getElementById("tab-carrera");
-                if (tab_carrera) renderMiCarrera(tab_carrera);
-
-                const tab_horario = document.getElementById("tab-horario");
-                if (tab_horario) renderHorario(tab_horario);
-                
-                alert("Toda la caché y datos de la extensión han sido borrados correctamente.");
-            }
+            // Re-render this tab and show the confirmation message
+            renderExportTab(container);
+            const cleared = container.querySelector(".sia-export-cleared");
+            if (cleared) cleared.hidden = false;
         });
     }
 
     // Data Dictionaries Definitions
     const dictionaries = {
         historia: {
-            headers: ["Columna", "Descripción", "Tipo de Dato", "Ejemplo"],
+            headers: ["Columna", "Descripción", "Tipo de dato", "Ejemplo"],
             rows: [
                 ["Semestre", "Identificador del semestre académico de la asignatura.", "Texto", "2024-1S"],
                 ["Asignatura", "Nombre oficial de la asignatura.", "Texto", "Cálculo Diferencial"],
@@ -349,17 +296,17 @@ export function renderExportTab(container) {
             ]
         },
         gpa: {
-            headers: ["Columna", "Descripción", "Tipo de Dato", "Ejemplo"],
+            headers: ["Columna", "Descripción", "Tipo de dato", "Ejemplo"],
             rows: [
                 ["Asignatura", "Nombre de la asignatura con notas parciales.", "Texto", "Física Mecánica"],
                 ["Actividad", "Descripción o nombre de la evaluación parcial.", "Texto", "Parcial 1"],
                 ["Porcentaje", "Porcentaje de peso que equivale la evaluación en la materia.", "Texto (Porcentaje)", "25.0%"],
                 ["Calificación Original", "La nota original extraída directamente del SIA.", "Numérico (Decimal)", "3.8"],
-                ["Calificación Simulada", "La nota modificada en la calculadora de promedio.", "Numérico (Decimal)", "4.5"]
+                ["Calificación Estimada", "La nota que pusiste en la calculadora de promedio (si no la cambiaste, es la original).", "Numérico (Decimal)", "4.5"]
             ]
         },
         horario: {
-            headers: ["Columna", "Descripción", "Tipo de Dato", "Ejemplo"],
+            headers: ["Columna", "Descripción", "Tipo de dato", "Ejemplo"],
             rows: [
                 ["Asignatura", "Nombre de la asignatura en el horario.", "Texto", "Álgebra Lineal"],
                 ["Tipología", "Componente o tipología de la materia.", "Texto", "Fundamentación Obligatoria"],

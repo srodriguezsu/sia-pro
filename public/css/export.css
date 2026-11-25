@@ -199,3 +199,177 @@
 .sia-dict-table tr:hover {
     background-color: #f1f5f9;
 }
+
+/* ===== Calmer layout (same principles as Historia) ===== */
+.sia-export-title {
+    font-size: 20px;
+    margin-bottom: 4px;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.sia-export-intro {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+/* Downloads as a simple list */
+.sia-export-list {
+    border-top: 1px solid #edf2f7;
+    margin-bottom: 20px;
+}
+
+.sia-export-row,
+.sia-export-danger {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.sia-export-row-info {
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.sia-export-row-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.sia-export-row-desc {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.sia-export-row-count {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.sia-export-row .sia-export-btn {
+    width: auto;
+    padding: 7px 14px;
+}
+
+/* Data dictionary collapsed by default */
+.sia-dict-section {
+    margin-bottom: 24px;
+}
+
+.sia-dict-title {
+    cursor: pointer;
+    list-style: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.sia-dict-title::-webkit-details-marker {
+    display: none;
+}
+
+.sia-dict-title::before {
+    content: "▸ ";
+    color: #64748b;
+}
+
+.sia-dict-section[open] .sia-dict-title::before {
+    content: "▾ ";
+}
+
+.sia-dict-section[open] .sia-dict-tabs {
+    margin-top: 12px;
+}
+
+/* Destructive action: separated, red text, inline confirmation */
+.sia-export-danger {
+    margin-top: 8px;
+    border-top: 1px solid #edf2f7;
+}
+
+.sia-export-clear {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: white;
+    color: #b91c1c;
+    cursor: pointer;
+}
+
+.sia-export-clear:hover {
+    background: #fef2f2;
+}
+
+.sia-export-clear:disabled {
+    border-color: #e2e8f0;
+    color: #94a3b8;
+    background: white;
+    cursor: not-allowed;
+}
+
+.sia-export-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #1e293b;
+}
+
+.sia-export-confirm[hidden],
+.sia-export-cleared[hidden] {
+    display: none;
+}
+
+.sia-export-confirm-cancel,
+.sia-export-confirm-ok {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.sia-export-confirm-cancel {
+    border: 1px solid #cbd5e1;
+    background: white;
+    color: #334155;
+}
+
+.sia-export-confirm-ok {
+    border: 1px solid #b91c1c;
+    background: #b91c1c;
+    color: white;
+}
+
+.sia-export-cleared {
+    flex-basis: 100%;
+    font-size: 12px;
+    color: #0f6d59;
+}
+
+.sia-export-clear:focus-visible,
+.sia-export-confirm button:focus-visible,
+.sia-dict-title:focus-visible {
+    outline: 2px solid #94a3b8;
+    outline-offset: 2px;
+}
+
+.sia-dict-section {
+    background: none;
+    border: 1px solid #edf2f7;
+    padding: 12px 16px;
+    margin-top: 0;
+}

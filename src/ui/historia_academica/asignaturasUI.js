@@ -1,5 +1,5 @@
-import { areAsignaturasAvailable, extractAsignaturasFromDom } from "../../scraper/domScraper.js";
-import { saveCachedAsignaturas, loadCachedAsignaturas, loadCachedCreditos } from "../../domain/historyManager.js";
+import { getAsignaturas } from "../../domain/historyData.js";
+import { loadCachedCreditos } from "../../domain/historyManager.js";
 import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
 import { calculateSemesterGPA, roundGrade } from "../../domain/gpaCalculator.js";
 import { findCalculatorSubject, openCalculatorForSubject } from "../gpaUI.js";
@@ -209,16 +209,8 @@ export function renderHistoriaAcademica(container) {
     if (!container) return;
     container.innerHTML = "";
     
-    let data = null;
-
-    // Try to scrape first if currently viewing the history page
-    if (areAsignaturasAvailable()) {
-        data = extractAsignaturasFromDom();
-        saveCachedAsignaturas(data);
-    } else {
-        // Fallback to loaded cache
-        data = loadCachedAsignaturas();
-    }
+    // Scraped from the page when possible, otherwise the saved copy
+    const data = getAsignaturas();
 
     // If no data exists in DOM or cache, show loading helper
     if (!data || Object.keys(data).length === 0) {
@@ -241,7 +233,7 @@ export function renderHistoriaAcademica(container) {
     container.appendChild(overviewBar);
 
     const retakes = findRetakes(data);
-    const filters = { text: "", componente: pendingTipologia || "", estado: "" };
+    const filters = { text: "", componente: pendingTipologia || "", estado: "", notaMin: 0, notaMax: 5, orden: "" };
     pendingTipologia = null;
     container.appendChild(buildFilterBar(data, filters, () => renderColumns()));
 
@@ -260,6 +252,11 @@ export function renderHistoriaAcademica(container) {
         if (filters.estado === "aprobada" && classifyAsignatura(asignatura) !== "aprobada") return false;
         if (filters.estado === "reprobada" && classifyAsignatura(asignatura) !== "reprobada") return false;
         if (filters.estado === "repetida" && !retakes.has(normalizeHistoryName(asignatura.nombre))) return false;
+        // Grade range: when narrowed, only graded subjects inside it
+        if (isGradeRangeActive(filters)) {
+            if (!Number.isFinite(asignatura.calificacion)) return false;
+            if (asignatura.calificacion < filters.notaMin || asignatura.calificacion > filters.notaMax) return false;
+        }
         return true;
     };
 
@@ -270,7 +267,7 @@ export function renderHistoriaAcademica(container) {
 
     // Only the most recent semester starts open; the user's choices are kept across filter changes
     const openKeys = new Set(semesterSummaries.length ? [semesterSummaries[0].key] : []);
-    const isFiltering = () => Boolean(filters.text || filters.componente || filters.estado);
+    const isFiltering = () => Boolean(filters.text || filters.componente || filters.estado || isGradeRangeActive(filters));
 
     const renderColumns = () => {
         wrapper.innerHTML = "";
@@ -283,12 +280,8 @@ export function renderHistoriaAcademica(container) {
             if (materias.length === 0) continue;
             shown.push(...materias);
 
-            // Sort subjects by grade descending, placing ungraded or pending ones (null) at the end
-            materias.sort((a, b) => {
-                if (a.calificacion == null) return 1;
-                if (b.calificacion == null) return -1;
-                return b.calificacion - a.calificacion;
-            });
+            // Order chosen in the filter panel (grade descending by default)
+            materias.sort(subjectComparator(filters.orden));
 
             const block = document.createElement("details");
             block.className = "sia-sem-block";
@@ -368,10 +361,18 @@ function buildFilterBar(data, filters, onChange) {
         { value: "repetida", label: "Cursadas más de una vez" }
     ], filters, "estado", () => update());
     const tipoGroup = buildChipGroup("Tipología", tipologiaOptions(componentes), filters, "componente", () => update());
-    panel.append(estadoGroup.el, tipoGroup.el);
+    const gradeGroup = buildGradeRange(filters, () => update());
+    const ordenGroup = buildChipGroup("Ordenar", [
+        { value: "", label: "Mayor nota" },
+        { value: "nota-asc", label: "Menor nota" },
+        { value: "nombre", label: "Nombre" },
+        { value: "creditos", label: "Créditos" }
+    ], filters, "orden", () => update());
+    panel.append(estadoGroup.el, tipoGroup.el, gradeGroup.el, ordenGroup.el);
 
     let open = Boolean(filters.componente || filters.estado);
-    const activeCount = () => (filters.componente ? 1 : 0) + (filters.estado ? 1 : 0);
+    // The order is a preference, not a filter, so it does not count here
+    const activeCount = () => (filters.componente ? 1 : 0) + (filters.estado ? 1 : 0) + (isGradeRangeActive(filters) ? 1 : 0);
     const paint = () => {
         const n = activeCount();
         toggle.textContent = n > 0 ? `Filtros (${n})` : "Filtros";
@@ -381,6 +382,8 @@ function buildFilterBar(data, filters, onChange) {
         clear.hidden = !(n > 0 || filters.text);
         estadoGroup.paint();
         tipoGroup.paint();
+        gradeGroup.paint();
+        ordenGroup.paint();
     };
     const update = () => { paint(); onChange(); };
 
@@ -390,6 +393,8 @@ function buildFilterBar(data, filters, onChange) {
         filters.text = "";
         filters.componente = "";
         filters.estado = "";
+        filters.notaMin = 0;
+        filters.notaMax = 5;
         search.value = "";
         update();
     });
@@ -432,6 +437,96 @@ function tipologiaOptions(componentes) {
         });
     }
     return options;
+}
+
+/**
+ * Whether the grade range filter is narrower than the full 0-5 scale.
+ *
+ * @param {{notaMin: number, notaMax: number}} filters - Filter state.
+ * @returns {boolean} True when the range is active.
+ */
+function isGradeRangeActive(filters) {
+    return filters.notaMin > 0 || filters.notaMax < 5;
+}
+
+/**
+ * Comparator for the subjects of a semester, by the chosen order.
+ * Subjects without a grade always go last when ordering by grade.
+ *
+ * @param {""|"nota-asc"|"nombre"|"creditos"} orden - Order key ("" = highest grade first).
+ * @returns {function(Object, Object): number} Comparator.
+ */
+function subjectComparator(orden) {
+    const byName = (a, b) => (a.nombre || "").localeCompare(b.nombre || "", "es");
+    if (orden === "nombre") return byName;
+    if (orden === "creditos") return (a, b) => (b.creditos || 0) - (a.creditos || 0) || byName(a, b);
+    const sign = orden === "nota-asc" ? 1 : -1;
+    return (a, b) => {
+        const ga = Number.isFinite(a.calificacion);
+        const gb = Number.isFinite(b.calificacion);
+        if (!ga && !gb) return byName(a, b);
+        if (!ga) return 1;
+        if (!gb) return -1;
+        return sign * (a.calificacion - b.calificacion) || byName(a, b);
+    };
+}
+
+/**
+ * Builds the grade range filter: two number fields ("de 0.0 a 5.0").
+ * Values are clamped to 0-5 and swapped if the minimum is above the maximum.
+ *
+ * @param {{notaMin: number, notaMax: number}} filters - Mutable filter state.
+ * @param {function} onChange - Called after the range changes.
+ * @returns {{el: HTMLElement, paint: function}} Group element and a function to refresh it.
+ */
+function buildGradeRange(filters, onChange) {
+    const el = document.createElement("div");
+    el.className = "sia-hist-chip-group";
+
+    const title = document.createElement("span");
+    title.className = "sia-hist-chip-group-label";
+    title.textContent = "Nota";
+
+    const makeInput = (label) => {
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.max = "5";
+        input.step = "0.1";
+        input.className = "sia-hist-grade-input";
+        input.setAttribute("aria-label", label);
+        return input;
+    };
+    const minInput = makeInput("Nota mínima");
+    const maxInput = makeInput("Nota máxima");
+
+    const range = document.createElement("span");
+    range.className = "sia-hist-grade-range";
+    range.append("de", minInput, "a", maxInput);
+
+    const apply = () => {
+        const clamp = (v, fallback) => {
+            const n = parseFloat(v);
+            return Number.isFinite(n) ? Math.min(5, Math.max(0, n)) : fallback;
+        };
+        let min = clamp(minInput.value, 0);
+        let max = clamp(maxInput.value, 5);
+        if (min > max) [min, max] = [max, min];
+        filters.notaMin = min;
+        filters.notaMax = max;
+        onChange();
+    };
+    minInput.addEventListener("change", apply);
+    maxInput.addEventListener("change", apply);
+
+    const paint = () => {
+        minInput.value = filters.notaMin.toFixed(1);
+        maxInput.value = filters.notaMax.toFixed(1);
+        range.classList.toggle("active", isGradeRangeActive(filters));
+    };
+
+    el.append(title, range);
+    return { el, paint };
 }
 
 /**

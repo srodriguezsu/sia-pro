@@ -322,11 +322,28 @@ export function renderHorario(container) {
                 const storedState = localStorage.getItem(prereqStateKey);
                 let prereqOpen = storedState === null ? false : storedState === "true";
 
+                // Overall status, shown on the toggle so it is visible even when collapsed
+                let conditionsMet = 0;
                 const syncToggle = () => {
+                    const total = subject.prerrequistios.length;
+                    let state;
+                    let label;
+                    if (!hasHistory) {
+                        state = "unknown";
+                        label = "Prerrequisitos · carga tu historia para verificarlos";
+                    } else if (conditionsMet === total) {
+                        state = "met";
+                        label = "Prerrequisitos cumplidos";
+                    } else {
+                        state = "unmet";
+                        label = total === 1
+                            ? "Prerrequisitos sin cumplir"
+                            : `Prerrequisitos sin cumplir · ${conditionsMet} de ${total} condiciones`;
+                    }
+                    prereqToggle.textContent = label;
+                    prereqToggle.dataset.state = state;
+                    prereqContainer.dataset.state = state;
                     prereqToggle.setAttribute("aria-expanded", prereqOpen ? "true" : "false");
-                    prereqToggle.textContent = prereqOpen
-                        ? "Prerrequisitos"
-                        : "Prerrequisitos";
                     prereqPanel.hidden = !prereqOpen;
                     prereqContainer.classList.toggle("is-open", prereqOpen);
                 };
@@ -394,6 +411,7 @@ export function renderHorario(container) {
                     });
 
                     const blockSatisfied = pr.todas ? (satisfiedCount === (reqs.length || 0)) : (satisfiedCount > 0);
+                    if (blockSatisfied) conditionsMet++;
 
                     todasLine.textContent = pr.todas ? "Requiere todas las asignaturas listadas." : "Basta con aprobar al menos una asignatura listada.";
                     todasLine.classList.toggle("is-satisfied", blockSatisfied);
@@ -499,9 +517,22 @@ export function renderHorario(container) {
 }
 
 /**
+ * Converts "HH:MM" (or "HH") to minutes since midnight.
+ *
+ * @param {string} time - Time text.
+ * @returns {number|null} Minutes, or null when it cannot be parsed.
+ */
+function toMinutes(time) {
+    const m = (time || "").match(/(\d{1,2})(?::(\d{2}))?/);
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + (m[2] ? parseInt(m[2], 10) : 0);
+}
+
+/**
  * Generates the weekly calendar grid with the selected groups.
  * Only shows the days and hours in use (Monday to Friday always, weekends only when needed,
- * hours trimmed to the classes with a 7:00-18:00 minimum), and colors each block with its
+ * 6:00-20:00 by default, extended only when a class starts earlier or ends later), with
+ * half-hour precision so classes like 21:00-21:30 keep their real length. Each block uses its
  * typology so the calendar follows the same color code as the rest of the extension.
  *
  * @param {Array.<Object>} subjects - List of all selected subjects.
@@ -530,22 +561,25 @@ function renderCalendarGrid(subjects, selections) {
         if (!selectedGroup || !selectedGroup.horarios) return;
         const hasConflicts = getConflictsForGroup(subj.name, selectedGroup).length > 0;
         selectedGroup.horarios.forEach((h) => {
-            const startHour = parseInt(h.horaInicio.split(":")[0], 10);
-            const endHour = parseInt(h.horaFin.split(":")[0], 10);
-            if (isNaN(startHour) || isNaN(endHour)) return;
-            blocks.push({ subj, group: selectedGroup, h, day: normalizeDay(h.dia), startHour, endHour, hasConflicts });
+            const start = toMinutes(h.horaInicio);
+            const end = toMinutes(h.horaFin);
+            if (start == null || end == null || end <= start) return;
+            blocks.push({ subj, group: selectedGroup, h, day: normalizeDay(h.dia), start, end, hasConflicts });
         });
     });
 
     const usedDays = new Set(blocks.map((b) => b.day));
     const days = allDays.filter((d, i) => i < 5 || usedDays.has(d.key));
-    const firstHour = Math.min(7, ...blocks.map((b) => b.startHour));
-    const lastHour = Math.max(18, ...blocks.map((b) => b.endHour));
+    // 6:00-20:00 by default; widened to whole hours when a class falls outside it
+    const firstHour = Math.min(6, ...blocks.map((b) => Math.floor(b.start / 60)));
+    const lastHour = Math.max(20, ...blocks.map((b) => Math.ceil(b.end / 60)));
     const hourCount = lastHour - firstHour;
+    // Two rows per hour (half-hour slots); row 1 is the header
+    const slotRow = (minutes) => Math.round((minutes - firstHour * 60) / 30) + 2;
 
     grid.style.display = "grid";
     grid.style.gridTemplateColumns = `56px repeat(${days.length}, 1fr)`;
-    grid.style.gridTemplateRows = `36px repeat(${hourCount}, 40px)`;
+    grid.style.gridTemplateRows = `36px repeat(${hourCount * 2}, 20px)`;
 
     // Column headers
     ["", ...days.map((d) => d.label)].forEach((label, index) => {
@@ -563,30 +597,31 @@ function renderCalendarGrid(subjects, selections) {
         label.className = "calendar-hour-label";
         label.textContent = `${hour}:00`;
         label.style.gridColumn = "1";
-        label.style.gridRow = `${hour - firstHour + 2}`;
+        label.style.gridRow = `${slotRow(hour * 60)} / span 2`;
         grid.appendChild(label);
     }
 
     // Background cells
     for (let col = 2; col <= days.length + 1; col++) {
-        for (let row = 2; row <= hourCount + 1; row++) {
+        for (let hour = firstHour; hour < lastHour; hour++) {
             const cell = document.createElement("div");
             cell.className = "calendar-bg-cell";
             cell.style.gridColumn = `${col}`;
-            cell.style.gridRow = `${row}`;
+            cell.style.gridRow = `${slotRow(hour * 60)} / span 2`;
             grid.appendChild(cell);
         }
     }
 
     // Class blocks, colored by typology (conflicts keep their warning style)
-    blocks.forEach(({ subj, group, h, day, startHour, endHour, hasConflicts }) => {
+    blocks.forEach(({ subj, group, h, day, start, end, hasConflicts }) => {
         const dayIndex = days.findIndex((d) => d.key === day);
         if (dayIndex === -1) return;
 
         const block = document.createElement("div");
         block.className = `calendar-event-block ${tipologiaClass(subj.tipologia)}${hasConflicts ? " conflict" : ""}`;
         block.style.gridColumn = `${dayIndex + 2}`;
-        block.style.gridRow = `${startHour - firstHour + 2} / ${endHour - firstHour + 2}`;
+        // At least one half-hour slot, so very short classes stay visible
+        block.style.gridRow = `${slotRow(start)} / ${Math.max(slotRow(end), slotRow(start) + 1)}`;
 
         const tooltipParts = [
             subj.name,
@@ -789,22 +824,16 @@ function printSchedule(calendarPanel, subjects, selections) {
                         color: #334155;
                     }
                     
-                    /* Force contrast for colors inside grid cells during printing */
-                    .calendar-event-block * {
-                        color: #ffffff !important;
-                    }
-                    .calendar-event-block.conflict * {
-                        color: #b91c1c !important;
-                    }
-                    /* Hide classroom info in calendar grid during printing */
-                    .calendar-event-block .event-room {
-                        display: none !important;
+                    /* The calendar keeps the styles copied from the live view (see inlineComputedStyles) */
+                    .sia-horario-calendar-panel {
+                        position: static !important;
+                        padding: 0 !important;
                     }
                 </style>
             </head>
             <body>
                 <div class="sia-horario-calendar-panel">
-                    ${calendarPanel.innerHTML}
+                    ${printableCalendarHtml(calendarPanel)}
                 </div>
                 <div class="print-details-container">
                     <h3>Detalle de Asignaturas Seleccionadas</h3>
@@ -830,6 +859,41 @@ function printSchedule(calendarPanel, subjects, selections) {
             printIframe.remove();
         }, 500);
     }, 500);
+}
+
+/**
+ * Properties copied from the live calendar into the printed copy. The extension's stylesheets
+ * are not reliably available inside the print iframe, so the calendar is printed with its
+ * actual computed look (typology colors, layout, fonts) inlined on each element.
+ */
+const PRINT_STYLE_PROPS = [
+    "display", "grid-template-columns", "grid-template-rows", "grid-column", "grid-row",
+    "flex-direction", "align-items", "justify-content", "align-self", "gap",
+    "background-color", "color", "border-top", "border-right", "border-bottom", "border-left", "border-radius",
+    "padding", "margin", "font-size", "font-weight", "line-height", "text-align",
+    "overflow", "white-space", "word-break", "z-index",
+    "-webkit-line-clamp", "-webkit-box-orient"
+];
+
+/**
+ * Returns the calendar panel HTML with its computed styles inlined, ready for printing.
+ *
+ * @param {HTMLElement} calendarPanel - Live calendar panel (must be rendered and visible).
+ * @returns {string} HTML of the panel's contents.
+ */
+function printableCalendarHtml(calendarPanel) {
+    const clone = calendarPanel.cloneNode(true);
+    const source = [calendarPanel, ...calendarPanel.querySelectorAll("*")];
+    const target = [clone, ...clone.querySelectorAll("*")];
+    source.forEach((el, i) => {
+        const computed = getComputedStyle(el);
+        const css = PRINT_STYLE_PROPS
+            .map((prop) => `${prop}: ${computed.getPropertyValue(prop)}`)
+            .join("; ");
+        target[i].setAttribute("style", `${target[i].getAttribute("style") || ""}; ${css}`);
+    });
+    clone.querySelectorAll(".sia-horario-print-btn").forEach((b) => b.remove());
+    return clone.innerHTML;
 }
 
 /**

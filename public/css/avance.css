@@ -228,3 +228,148 @@
     font-size: 12px;
     color: #64748b;
 }
+
+/* ===== Calmer layout (same principles as Historia) ===== */
+.sia-avance-header {
+    font-size: 20px;
+    margin-bottom: 12px;
+}
+
+/* Key figures above the chart */
+.sia-avance-key {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #edf2f7;
+    text-align: center;
+}
+
+.sia-avance-key-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sia-avance-key-item b {
+    font-size: 20px;
+    color: #1e293b;
+}
+
+.sia-avance-key-item span {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.sia-chart-container {
+    box-shadow: none;
+    padding: 16px;
+}
+
+/* Collapsible detail table, neutral text; projected rows in grey */
+.sia-progress-table-container {
+    margin-top: 16px;
+    padding: 0;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.sia-progress-table-title {
+    margin: 0;
+    padding: 14px 18px;
+    border-bottom: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    list-style: none;
+}
+
+.sia-progress-table-title::-webkit-details-marker {
+    display: none;
+}
+
+.sia-progress-table-title::before {
+    content: "▸ ";
+    color: #64748b;
+}
+
+.sia-progress-table-container[open] .sia-progress-table-title::before {
+    content: "▾ ";
+}
+
+.sia-progress-table-container[open] .sia-progress-table-title {
+    border-bottom: 1px solid #edf2f7;
+}
+
+.sia-progress-table th {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.sia-progress-table td,
+.sia-progress-table td.semestre-name {
+    color: #1e293b;
+    font-weight: 400;
+}
+
+.sia-progress-table td.semestre-name {
+    font-weight: 600;
+}
+
+.sia-progress-table tbody tr:hover,
+.sia-progress-table tbody tr.proyeccion-row:hover {
+    background-color: #f8fafc;
+}
+
+.sia-progress-table tbody tr.proyeccion-row {
+    font-style: normal;
+}
+
+.sia-progress-table tbody tr.proyeccion-row td {
+    color: #94a3b8;
+}
+
+.sia-progress-table-container .sia-progress-table-note {
+    margin: 0;
+    padding: 10px 18px 14px;
+}
+
+@media (max-width: 640px) {
+    .sia-avance-key-item b {
+        font-size: 17px;
+    }
+}
+
+/* Chart switch: same small neutral chips as the rest of the UI */
+.sia-chart-tabs {
+    justify-content: flex-start;
+    margin-bottom: 12px;
+}
+
+.sia-chart-tab-btn {
+    background: white;
+    border-color: #e2e8f0;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #334155;
+    box-shadow: none;
+}
+
+.sia-chart-tab-btn:hover {
+    border-color: #94a3b8;
+    background: white;
+    color: #1e293b;
+}
+
+.sia-chart-tab-btn.active {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: white;
+    box-shadow: none;
+}
