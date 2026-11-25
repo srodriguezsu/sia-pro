@@ -169,6 +169,9 @@ function bindUIEvents() {
  * 
  * @returns {void}
  */
+/** Last subject scraped from the grades page, used to detect real page navigation. */
+let lastScrapedSubject = null;
+
 function initWhenReady() {
     console.log("SIA Pro Activado");
 
@@ -198,9 +201,11 @@ function initWhenReady() {
                 const activities = extractActivitiesFromDom();
                 saveGpaCachedSubject(subjectName, activities, extractSubjectMeta());
 
-                // If the selected subject has changed, update selected subject
-                const prevSelected = localStorage.getItem("sia_pro_gpa_selected_subject");
-                if (prevSelected !== subjectName) {
+                // Only follow the page when the user actually opens a different subject in SIA.
+                // Comparing against the last scraped subject (instead of the stored selection)
+                // lets the user freely browse other subjects inside the calculator.
+                if (lastScrapedSubject !== subjectName) {
+                    lastScrapedSubject = subjectName;
                     localStorage.setItem("sia_pro_gpa_selected_subject", subjectName);
                     // Rerender GPA tab if currently active and opened
                     const tab_gpa = document.getElementById("tab-gpa");
