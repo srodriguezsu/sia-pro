@@ -220,3 +220,25 @@
         padding: 16px;
     }
 }
+
+/* Typology colors (see tipologias.css): progress bars and accent follow the typology */
+.sia-tipologia-colored .sia-progress-aprobado {
+    background: var(--tipo-color);
+    box-shadow: none;
+}
+
+/* Lighter shade of the same color, solid so the percentage label stays readable */
+.sia-tipologia-colored .sia-progress-inscrito {
+    background: color-mix(in srgb, var(--tipo-color) 35%, white);
+    opacity: 1;
+}
+
+.sia-tipologia-colored .sia-tipologia-percent {
+    color: var(--tipo-text);
+    background: var(--tipo-soft);
+}
+
+/* Colored typology cards already show their color dot; the 📊 icon stays only on uncolored cards (totals) */
+.sia-tipologia-colored .sia-tipologia-header h3::before {
+    content: none;
+}

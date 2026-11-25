@@ -2,6 +2,7 @@ import { areAsignaturasAvailable, extractAsignaturasFromDom } from "../../scrape
 import { saveCachedAsignaturas, loadCachedAsignaturas } from "../../domain/historyManager.js";
 import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
 import { calculateSemesterGPA } from "../../domain/gpaCalculator.js";
+import { createTipologiaTag, tipologiaClass, compareTipologias } from "../../utils/tipologias.js";
 
 const formatGpa = (v) => (v != null ? v.toFixed(2) : "—");
 
@@ -310,7 +311,7 @@ function buildFilterBar(data, filters, onChange) {
 
     const componentes = [...new Set(
         Object.values(data).flatMap((s) => (s.asignaturas || []).map((a) => a.componente).filter(Boolean))
-    )].sort((a, b) => a.localeCompare(b));
+    )].sort(compareTipologias);
 
     const makeSelect = (options, key) => {
         const select = document.createElement("select");
@@ -320,9 +321,18 @@ function buildFilterBar(data, filters, onChange) {
         return select;
     };
 
+    // Typology select uses the shared colors: each option, and the select itself once one is chosen
+    const tipoSelect = makeSelect([["", "Todas las tipologías"], ...componentes.map((c) => [c, c])], "componente");
+    tipoSelect.classList.add("sia-hist-tipo-select");
+    [...tipoSelect.options].forEach((o) => { if (o.value) o.className = `sia-tipo-option ${tipologiaClass(o.value)}`; });
+    const paintTipoSelect = () => {
+        tipoSelect.className = "sia-hist-select sia-hist-tipo-select" + (tipoSelect.value ? ` is-set ${tipologiaClass(tipoSelect.value)}` : "");
+    };
+    tipoSelect.addEventListener("change", paintTipoSelect);
+
     bar.append(
         search,
-        makeSelect([["", "Todas las tipologías"], ...componentes.map((c) => [c, c])], "componente"),
+        tipoSelect,
         makeSelect([
             ["", "Todos los estados"],
             ["aprobada", "Aprobadas"],
@@ -356,10 +366,10 @@ function buildSubjectCard(asignatura, semestre, retakes) {
     // Scraped text is set with textContent to avoid interpreting it as HTML
     const nameEl = row.querySelector(".sia-asig-row-name");
     nameEl.textContent = asignatura.nombre;
-    row.querySelector(".sia-asig-row-meta").textContent = [
-        asignatura.componente,
-        `${asignatura.creditos ?? "?"} créd.`
-    ].filter(Boolean).join(" · ");
+    const meta = row.querySelector(".sia-asig-row-meta");
+    const tag = createTipologiaTag(asignatura.componente);
+    if (tag) meta.appendChild(tag);
+    meta.appendChild(document.createTextNode(`${asignatura.creditos ?? "?"} créd.`));
 
     const grade = row.querySelector(".sia-asig-row-grade");
     grade.textContent = asignatura.calificacion != null ? asignatura.calificacion.toFixed(1) : "—";

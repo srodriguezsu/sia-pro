@@ -1,9 +1,10 @@
 import { areCreditosAvailable, extractCreditosFromDom } from "../../scraper/domScraper.js";
 import { saveCachedCreditos, loadCachedCreditos } from "../../domain/historyManager.js";
+import { tipologiaClass, getTipologiaKey, compareTipologias } from "../../utils/tipologias.js";
 
 /**
  * Renders a visual breakdown of credit progress grouped by academic component/typology.
- * Sorts regular components by progress percentage, placing totals at the bottom.
+ * Sorts regular components in the shared typology order, placing totals at the bottom.
  * Displays progress bars showing approved credits and currently enrolled credits.
  * 
  * @param {HTMLElement} container - The DOM container where the credit progress UI will be rendered.
@@ -54,12 +55,8 @@ export function renderCreditosProgress(container) {
         return nombre !== "TOTAL" && nombre !== "TOTAL ESTUDIANTE";
     });
 
-    // 🔹 Sort standard components by approved credit percentage descending
-    normales.sort((a, b) => {
-        const porcentajeA = a.exigidos ? a.aprobados / a.exigidos : 0;
-        const porcentajeB = b.exigidos ? b.aprobados / b.exigidos : 0;
-        return porcentajeB - porcentajeA;
-    });
+    // 🔹 Sort standard components in the shared typology order (Nivelación, Fundamentación, Libre elección, Disciplinar, Trabajo de grado, others)
+    normales.sort((a, b) => compareTipologias(a.componente, b.componente));
 
     // 🔹 Rebuild final sorted array placing standard components first, followed by totals
     const orderedData = [
@@ -89,11 +86,13 @@ export function renderCreditosProgress(container) {
             : 0;
 
         const card = document.createElement("div");
-        card.className = "sia-tipologia-card";
+        // Typology cards get their shared color; totals keep the default style
+        const tipoKey = getTipologiaKey(componente);
+        card.className = "sia-tipologia-card" + (tipoKey ? ` sia-tipologia-colored ${tipologiaClass(componente)}` : "");
 
         card.innerHTML = `
             <div class="sia-tipologia-header">
-                <h3>${componente}</h3>
+                <h3>${tipoKey ? '<span class="sia-tipo-dot"></span>' : ""}${componente}</h3>
                 <span class="sia-tipologia-percent">
                     ${Math.round(porcentajeAprobado)}%
                 </span>

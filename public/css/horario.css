@@ -705,3 +705,14 @@
     margin-bottom: 0;
 }
 
+
+/* Typology colors (see tipologias.css) */
+.sia-horario-typology-section {
+    border-left: 4px solid var(--tipo-color, #e2e8f0);
+}
+
+.sia-horario-typology-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

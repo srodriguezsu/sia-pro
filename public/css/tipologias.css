@@ -1,0 +1,50 @@
+/* Typology color families, shared across the whole extension (see src/utils/tipologias.js).
+   Fundamentación = blue, Disciplinar = violet (strong = obligatoria, light = optativa),
+   Libre elección = amber, Nivelación = grey, Trabajo de grado = teal.
+   Red and green are avoided because they mean failed / passed. */
+.sia-tipo-fund-obl      { --tipo-color: #1d4ed8; --tipo-text: #1e40af; --tipo-soft: #dbeafe; }
+.sia-tipo-fund-opt      { --tipo-color: #60a5fa; --tipo-text: #1e40af; --tipo-soft: #eff6ff; }
+.sia-tipo-disc-obl      { --tipo-color: #6d28d9; --tipo-text: #5b21b6; --tipo-soft: #ede9fe; }
+.sia-tipo-disc-opt      { --tipo-color: #a78bfa; --tipo-text: #5b21b6; --tipo-soft: #f5f3ff; }
+.sia-tipo-libre         { --tipo-color: #d97706; --tipo-text: #92400e; --tipo-soft: #fef3c7; }
+.sia-tipo-nivelacion    { --tipo-color: #64748b; --tipo-text: #334155; --tipo-soft: #f1f5f9; }
+.sia-tipo-trabajo-grado { --tipo-color: #0d9488; --tipo-text: #115e59; --tipo-soft: #ccfbf1; }
+.sia-tipo-neutral       { --tipo-color: #94a3b8; --tipo-text: #475569; --tipo-soft: #f1f5f9; }
+
+/* Tag: soft background, colored dot and readable text */
+.sia-tipo-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 1px 8px;
+    border-radius: 100px;
+    background: var(--tipo-soft);
+    color: var(--tipo-text);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+.sia-tipo-tag::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tipo-color);
+    flex-shrink: 0;
+}
+
+/* Small dot to place next to a title */
+.sia-tipo-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--tipo-color);
+    flex-shrink: 0;
+}

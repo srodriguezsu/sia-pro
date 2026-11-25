@@ -1,3 +1,4 @@
+import { tipologiaClass, compareTipologias } from "../utils/tipologias.js";
 import {
     loadSelectedSubjects,
     loadSelectedGroups,
@@ -117,10 +118,8 @@ export function renderHorario(container) {
         subjectsByTypology[tipo].push(subject);
     });
 
-    // Sort typologies alphabetically
-    const sortedTypologies = Object.keys(subjectsByTypology).sort((a, b) => {
-        return a.toUpperCase().localeCompare(b.toUpperCase());
-    });
+    // Sort typologies in the shared typology order
+    const sortedTypologies = Object.keys(subjectsByTypology).sort(compareTipologias);
 
     sortedTypologies.forEach((tipo) => {
         const typologySubjects = subjectsByTypology[tipo];
@@ -136,7 +135,7 @@ export function renderHorario(container) {
 
         // Create a section container for this typology
         const section = document.createElement("div");
-        section.className = "sia-horario-typology-section";
+        section.className = `sia-horario-typology-section ${tipologiaClass(tipo)}`;
 
         const sectionHeader = document.createElement("div");
         sectionHeader.className = "sia-horario-typology-header";
@@ -144,7 +143,7 @@ export function renderHorario(container) {
         const formattedTipoName = tipo.toLowerCase().split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
         
         sectionHeader.innerHTML = `
-            <h4 class="sia-horario-typology-title">${formattedTipoName}</h4>
+            <h4 class="sia-horario-typology-title"><span class="sia-tipo-dot"></span>${formattedTipoName}</h4>
             <span class="sia-horario-typology-credits">${selectedCreditsForTipo} ${selectedCreditsForTipo === 1 ? 'crédito' : 'créditos'}</span>
         `;
         section.appendChild(sectionHeader);

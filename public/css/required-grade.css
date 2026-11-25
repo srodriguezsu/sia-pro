@@ -745,3 +745,8 @@
 .gpa-semester-original.is-hidden {
     visibility: hidden;
 }
+
+/* Typology tag next to the credits in the semester list */
+.gpa-semester-row-details .sia-tipo-tag {
+    margin-left: 6px;
+}

@@ -345,3 +345,31 @@
     font-size: 12px;
     font-weight: 500;
 }
+
+.sia-asig-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+}
+
+/* Typology filter painted with the shared typology colors */
+.sia-hist-tipo-select.is-set {
+    background: var(--tipo-soft);
+    color: var(--tipo-text);
+    border-color: var(--tipo-color);
+    box-shadow: inset 4px 0 0 var(--tipo-color);
+    font-weight: 600;
+}
+
+.sia-hist-tipo-select option {
+    background: white;
+    color: #1e293b;
+    font-weight: 400;
+}
+
+.sia-hist-tipo-select option.sia-tipo-option {
+    background: var(--tipo-soft);
+    color: var(--tipo-text);
+    font-weight: 600;
+}
