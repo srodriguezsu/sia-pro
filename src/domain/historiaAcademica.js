@@ -89,12 +89,15 @@ export function buildProgressData(asignaturasPorSemestre) {
  *   creditosDelSemestre: number
  * }>} progressData - Historical academic progress data.
  * @param {number} totalExigidos - Total credit requirements for the academic program.
+ * @param {Array.<{label: string, credits: number, semestre?: string}>} [upcoming] - Known credits for the next semesters
+ *   (e.g. current enrollment, plan from Horario), used before falling back to the historical average.
  * @returns {Array.<{
  *   semestre: string,
- *   acumulado: number
+ *   acumulado: number,
+ *   fuente?: string
  * }>} Array of projected future semesters with expected accumulated credits.
  */
-export function proyectarSemestres(progressData, totalExigidos) {
+export function proyectarSemestres(progressData, totalExigidos, upcoming = []) {
     const rawPromedio = calcularPromedioPorSemestre(progressData);
     // Use at least 10 credits per semester (minimum load) for future projections
     const promedio = Math.max(10, rawPromedio);
@@ -102,6 +105,20 @@ export function proyectarSemestres(progressData, totalExigidos) {
     let ultimoAcumulado = progressData.at(-1).acumulado;
     let semestreIndex = 1;
     const proyeccion = [];
+
+    // Known upcoming semesters first (current enrollment, plan from Horario), then the historical average
+    for (const next of upcoming) {
+        if (ultimoAcumulado >= totalExigidos) break;
+        if (!(next.credits > 0)) continue;
+        ultimoAcumulado += next.credits;
+        proyeccion.push({
+            // A known period (e.g. the ongoing semester) keeps its own name and does not use a "+ n" slot
+            semestre: next.semestre || `+ ${semestreIndex} (${next.label})`,
+            acumulado: Math.min(Math.round(ultimoAcumulado), totalExigidos),
+            fuente: next.label
+        });
+        if (!next.semestre) semestreIndex++;
+    }
 
     // Safety limit to avoid infinite loops if projection doesn't progress
     const MAX_SEMESTRES = 20;

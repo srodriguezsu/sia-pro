@@ -177,10 +177,50 @@ function yearTerm(key) {
 }
 
 /**
+ * Detects the semester currently in progress by comparing the calculator with the history.
+ * A period is in progress when the calculator has subjects of that period that are not yet in
+ * the history with a final grade. Subjects that finished early appear in both; ongoing ones only
+ * in the calculator. If every calculator subject is already graded in the history, the calculator
+ * data is from a finished semester and nothing is detected.
+ *
+ * @param {Object.<string, {asignaturas: Array.<Object>}>|null} historyData - Academic history.
+ * @param {Array.<{name: string, period: string|null}>} calculatorSubjects - Cached calculator subjects.
+ * @returns {{period: string, historyKey: string|null, pendingNames: Array.<string>}|null}
+ *   Ongoing period (calculator key), the matching history semester key if it already has
+ *   early-finished subjects, and the calculator subjects still pending; or null.
+ */
+export function detectOngoingSemester(historyData, calculatorSubjects) {
+    const periods = [...new Set(calculatorSubjects.map((s) => s.period).filter((p) => yearTerm(p)))];
+    if (periods.length === 0) return null;
+    // Most recent calculator period
+    const period = periods.sort((a, b) => yearTerm(b).localeCompare(yearTerm(a), undefined, { numeric: true }))[0];
+    const term = yearTerm(period);
+
+    const historyKey = Object.keys(historyData || {}).find((k) => yearTerm(k) === term) || null;
+    const gradedInPeriod = historyKey
+        ? (historyData[historyKey].asignaturas || []).filter((a) => classifyAsignatura(a) !== "otra")
+        : [];
+
+    const pendingNames = calculatorSubjects
+        .filter((s) => yearTerm(s.period) === term)
+        .filter((s) => !gradedInPeriod.some((a) => isSameSubjectName(a.nombre, s.name)))
+        .map((s) => s.name);
+
+    if (pendingNames.length === 0) return null;
+
+    // A calculator period older than the latest history semester is stale data
+    const latestHistory = sortSemesterKeys(Object.keys(historyData || {})).map(yearTerm).filter(Boolean).at(-1);
+    if (latestHistory && term.localeCompare(latestHistory, undefined, { numeric: true }) < 0) return null;
+
+    return { period, historyKey, pendingNames };
+}
+
+/**
  * Projects the PAPA after the given period, combining the final grades of the academic history
- * with the (possibly simulated) grades of the calculator for that period.
- * Only applies to periods still in progress: if the history already has final grades for that
- * period, it returns null to avoid counting the same subjects twice.
+ * with the (possibly calculated) grades of the calculator for that period.
+ * Subjects of that period already graded in the history (e.g. finished early) keep their final
+ * grade; only the ones still pending use the calculator grade. Returns null when nothing of that
+ * period is pending (the semester is over), to avoid counting subjects twice.
  *
  * @param {Object.<string, {asignaturas: Array.<Object>}>|null} historyData - Academic history.
  * @param {string} period - Calculator period key (e.g. "2025-1S").
@@ -192,29 +232,24 @@ export function projectPapa(historyData, period, currentSubjects) {
     const term = yearTerm(period);
     if (!term) return null;
 
-    const currentNames = new Set(currentSubjects.map((s) => normalizeHistoryName(s.name)));
     const graded = [];
-    let periodHasFinalGrades = false;
-
+    const gradedInPeriod = [];
     Object.entries(historyData).forEach(([semestre, s]) => {
         const samePeriod = yearTerm(semestre) === term;
         (s?.asignaturas || []).forEach((a) => {
             if (!Number.isFinite(a.calificacion)) return;
-            if (samePeriod) {
-                periodHasFinalGrades = true;
-                // Skip the history copy of a subject the calculator already covers
-                if (currentNames.has(normalizeHistoryName(a.nombre))) return;
-            }
             graded.push({ grade: a.calificacion, credits: a.creditos });
+            if (samePeriod) gradedInPeriod.push(a);
         });
     });
 
-    if (periodHasFinalGrades) return null;
+    const pending = currentSubjects.filter((s) => !gradedInPeriod.some((a) => isSameSubjectName(a.nombre, s.name)));
+    if (pending.length === 0) return null;
 
     const current = calculateSemesterGPA(graded).gpa;
     const projected = calculateSemesterGPA([
         ...graded,
-        ...currentSubjects.map((s) => ({ grade: s.grade, credits: s.credits }))
+        ...pending.map((s) => ({ grade: s.grade, credits: s.credits }))
     ]).gpa;
     return { current, projected };
 }
@@ -243,4 +278,17 @@ export function findApprovedAttempt(historyData, identifier) {
         }
     }
     return null;
+}
+
+/**
+ * Compares two subject names ignoring accents, case, spacing and a trailing "(CODE)".
+ *
+ * @param {string|null} a - Subject name.
+ * @param {string|null} b - Subject name.
+ * @returns {boolean} True when both refer to the same subject.
+ */
+export function isSameSubjectName(a, b) {
+    const clean = (n) => normalizeHistoryName((n || "").replace(/\([^)]*\)\s*$/, ""));
+    const ca = clean(a);
+    return Boolean(ca) && ca === clean(b);
 }

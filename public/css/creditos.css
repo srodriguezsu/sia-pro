@@ -263,3 +263,25 @@
 .sia-tipologia-link:hover .sia-tipologia-cta {
     text-decoration: underline;
 }
+
+/* Credits planned in Horario: striped third segment behind approved and enrolled */
+.sia-progress-planeado {
+    position: absolute;
+    height: 100%;
+    border-radius: 100px;
+    z-index: 0;
+    background: repeating-linear-gradient(45deg, #cbd5e1 0 4px, #e2e8f0 4px 8px);
+}
+
+.sia-tipologia-colored .sia-progress-planeado {
+    background: repeating-linear-gradient(
+        45deg,
+        color-mix(in srgb, var(--tipo-color) 30%, white) 0 4px,
+        color-mix(in srgb, var(--tipo-color) 12%, white) 4px 8px
+    );
+}
+
+.sia-tipologia-planned {
+    font-size: 13px;
+    color: #64748b;
+}

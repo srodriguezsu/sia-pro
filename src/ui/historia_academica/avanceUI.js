@@ -1,3 +1,5 @@
+import { getPlannedCredits } from "../../domain/scheduleManager.js";
+import { detectOngoingSemester } from "../../domain/historySummary.js";
 import {
     buildProgressData,
     calcularPromedioPorSemestre,
@@ -13,7 +15,9 @@ import {
     saveCachedAsignaturas,
     loadCachedAsignaturas,
     saveCachedCreditos,
-    loadCachedCreditos
+    loadCachedCreditos,
+    loadAllGpaCachedSubjects,
+    loadAllGpaSubjectMeta
 } from "../../domain/historyManager.js";
 
 
@@ -384,7 +388,30 @@ export function renderAvanceProgress(container) {
     }
 
     // Project semesters needed to reach graduation requirements
-    const proyeccion = proyectarSemestres(progressData, totalExigidos);
+    // Ongoing semester, deduced from the calculator (see detectOngoingSemester).
+    // If it already appears in the history (subjects that finished early), it is taken out of the
+    // real data so its partial credits do not lower the average, and shown as one projected row
+    // with those credits plus the enrolled ones. If it cannot be detected, enrollment is not projected.
+    const upcoming = [];
+    const meta = loadAllGpaSubjectMeta();
+    const calculatorSubjects = Object.keys(loadAllGpaCachedSubjects()).map((name) => ({ name, period: meta[name]?.period || null }));
+    const ongoing = (totalData.inscritos || 0) > 0 ? detectOngoingSemester(asignaturas, calculatorSubjects) : null;
+    if (ongoing) {
+        let earlyCredits = 0;
+        const last = progressData.at(-1);
+        if (ongoing.historyKey && last && last.semestre === ongoing.historyKey && progressData.length > 1) {
+            progressData.pop();
+            earlyCredits = last.creditosDelSemestre;
+        }
+        upcoming.push({
+            label: "en curso",
+            semestre: `${(ongoing.historyKey || ongoing.period).replace(" Ordinaria", "")} (en curso)`,
+            credits: earlyCredits + totalData.inscritos
+        });
+    }
+    // Then the plan in Horario for the next semester
+    upcoming.push({ label: "Horario", credits: getPlannedCredits().total });
+    const proyeccion = proyectarSemestres(progressData, totalExigidos, upcoming);
 
     // Create container elements
     const title = document.createElement("h2");
@@ -459,6 +486,17 @@ export function renderAvanceProgress(container) {
     table.innerHTML = tableHTML;
     tableContainer.appendChild(tableTitle);
     tableContainer.appendChild(table);
+
+    // Explain where the first projected semesters come from
+    const sources = [];
+    if (proyeccion.some((p) => p.fuente === "en curso")) sources.push("el semestre en curso (lo que ya aprobaste más lo que tienes inscrito)");
+    if (proyeccion.some((p) => p.fuente === "Horario")) sources.push("los créditos que planeaste en Horario");
+    if (sources.length > 0) {
+        const note = document.createElement("p");
+        note.className = "sia-progress-table-note";
+        note.textContent = `Las primeras filas proyectadas usan ${sources.join(" y ")}; las siguientes, tu promedio histórico de créditos por semestre.`;
+        tableContainer.appendChild(note);
+    }
 
     // Append child components to main view container
     container.appendChild(title);

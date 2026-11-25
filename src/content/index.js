@@ -146,6 +146,9 @@ function bindUIEvents() {
             // Add active class to corresponding tab panel
             const target = document.getElementById(`tab-${tab.dataset.tab}`);
             target.classList.add("active");
+
+            // "Mi carrera" uses the plan from Horario, so refresh it whenever it is opened
+            if (tab.dataset.tab === "carrera") renderMiCarrera(target);
         });
     });
 }

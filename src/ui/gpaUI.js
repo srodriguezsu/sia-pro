@@ -1,6 +1,6 @@
 import { SELECTORS } from "../utils/selectors.js";
 import { applyTipologiaAccent } from "../utils/tipologias.js";
-import { projectPapa } from "../domain/historySummary.js";
+import { projectPapa, isSameSubjectName } from "../domain/historySummary.js";
 import { calculateCurrentGPA, normalizeSubjectName, calculateSemesterGPA, roundGrade } from "../domain/gpaCalculator.js";
 import {
     extractActivitiesFromDom,
@@ -149,7 +149,7 @@ function comparePeriodsDesc(a, b) {
  * @param {Array.<Object>} activities - Cached activities.
  * @returns {{ grade: number, evaluatedWeight: number }} Accumulated grade and evaluated weight (0-1).
  */
-function computeSubjectGrade(subjectName, activities) {
+export function computeSubjectGrade(subjectName, activities) {
     const sims = loadGpaSimulationForSubject(subjectName);
     const applied = activities.map(a => ({
         ...a,
@@ -167,6 +167,35 @@ function computeSubjectGrade(subjectName, activities) {
         return { grade: projected, evaluatedWeight: 1 };
     }
     return { grade: currentGPA, evaluatedWeight };
+}
+
+/**
+ * Finds the calculator's cached subject that corresponds to a subject name from another module.
+ *
+ * @param {string} name - Subject name (e.g. from the academic history).
+ * @returns {{name: string, grade: number, evaluatedWeight: number}|null} Cached subject with its current grade, or null.
+ */
+export function findCalculatorSubject(name) {
+    const cached = loadAllGpaCachedSubjects();
+    const match = Object.keys(cached).find((cachedName) => isSameSubjectName(cachedName, name));
+    if (!match) return null;
+    return { name: match, ...computeSubjectGrade(match, cached[match]) };
+}
+
+/**
+ * Switches to the "Calculadora Promedio" tab with the given cached subject selected.
+ *
+ * @param {string} cachedName - Name of the subject as cached by the calculator.
+ * @returns {void}
+ */
+export function openCalculatorForSubject(cachedName) {
+    const tabButton = document.querySelector('.sia-tab[data-tab="gpa"]');
+    const tabContent = document.getElementById("tab-gpa");
+    if (!tabButton || !tabContent) return;
+    localStorage.setItem("sia_pro_gpa_selected_subject", cachedName);
+    tabButton.click();
+    renderGpa(tabContent);
+    tabContent.scrollIntoView({ block: "start" });
 }
 
 /**
@@ -294,36 +323,26 @@ export function renderGpa(container) {
     const historyData = loadCachedAsignaturas();
 
     /**
-     * Shows the PAPA the student would have after finishing the selected semester
-     * with the current (or simulated) grades. Hidden for semesters already graded in the history.
-     * @param {HTMLElement} el - Projection container.
+     * Builds the header block with the PAPA the student would have after finishing the selected
+     * semester with the current (or calculated) grades. Empty when there is no history or the
+     * semester is already graded in it.
      * @param {Array.<Object>} rows - Semester rows (name, grade, credits).
+     * @returns {string} HTML of the block, or "".
      */
-    const renderPapaProjection = (el, rows) => {
-        if (!historyData || Object.keys(historyData).length === 0) {
-            el.className = "gpa-papa-projection hint";
-            el.innerHTML = "Abre <b>Información académica &gt; Historia académica</b> para ver cómo quedaría tu PAPA con estas notas.";
-            return;
-        }
+    const papaProjectionHtml = (rows) => {
+        if (!historyData || Object.keys(historyData).length === 0) return "";
         const projection = projectPapa(historyData, selectedPeriod, rows.map((r) => ({ name: r.name, grade: r.grade, credits: r.credits })));
-        if (!projection || projection.projected == null) {
-            el.remove();
-            return;
-        }
+        if (!projection || projection.projected == null) return "";
         const { current, projected } = projection;
-        let deltaHtml = "";
-        if (current != null) {
-            const delta = projected - current;
-            const cls = delta > 0.005 ? "up" : delta < -0.005 ? "down" : "";
-            const arrow = cls === "up" ? "▲" : cls === "down" ? "▼" : "±";
-            deltaHtml = `<span class="gpa-papa-projection-delta ${cls}">${arrow}${Math.abs(delta).toFixed(2)}</span>
-                <span class="gpa-papa-projection-current">PAPA actual ${current.toFixed(2)}</span>`;
-        }
-        el.title = "PAPA acumulado si terminas este semestre con las notas actuales o simuladas";
-        el.innerHTML = `
-            <span class="gpa-papa-projection-label">PAPA proyectado al terminar el semestre</span>
-            <span class="gpa-papa-projection-value ${projected < 3 ? "failing" : ""}">${projected.toFixed(2)}</span>
-            ${deltaHtml}
+        const currentHtml = current != null
+            ? `<span class="gpa-semester-original" title="PAPA actual según tu historia académica">PAPA actual ${formatOriginalDelta(current, projected, 2)}</span>`
+            : "";
+        return `
+            <div class="gpa-semester-papa" title="PAPA acumulado si terminas este semestre con las notas actuales o las de la calculadora">
+                <span class="gpa-semester-papa-label">PAPA proyectado</span>
+                <span class="gpa-semester-papa-value ${projected < 3 ? "failing" : ""}">${projected.toFixed(2)}</span>
+                ${currentHtml}
+            </div>
         `;
     };
 
@@ -335,14 +354,12 @@ export function renderGpa(container) {
             typology: subjectMeta[name]?.typology ?? null,
             ...liveGrades[name]
         }));
-        const { gpa, totalCredits } = calculateSemesterGPA(rows);
-        const { gpa: originalGpa } = calculateSemesterGPA(rows.map(r => ({ grade: originalGrades[r.name], credits: r.credits })));
-        const semesterSimulated = gpa != null && originalGpa != null && isSimulated(originalGpa, gpa);
+        const { totalCredits } = calculateSemesterGPA(rows);
         const missingCredits = rows.filter(r => !Number.isFinite(r.credits)).length;
         const inProgress = rows.some(r => r.evaluatedWeight < 0.999);
 
         const notes = [];
-        if (inProgress) notes.push("Incluye asignaturas en curso: las actividades sin nota cuentan como 0 (usa el simulador para proyectarlas).");
+        if (inProgress) notes.push("Incluye asignaturas en curso: las actividades sin nota cuentan como 0 (usa la calculadora para proyectarlas).");
         if (missingCredits > 0) notes.push(`${missingCredits} asignatura(s) sin créditos conocidos no se incluyen. Vuelve a abrirlas en <b>Mis calificaciones</b> para actualizar sus datos.`);
 
         semesterCard.innerHTML = `
@@ -351,18 +368,11 @@ export function renderGpa(container) {
                     <div class="gpa-semester-title">📅 ${periodLabel(selectedPeriod)}</div>
                     <div class="gpa-semester-sub">${rows.length} asignaturas · ${totalCredits} créditos</div>
                 </div>
-                <div class="gpa-semester-papa" title="Promedio ponderado por créditos, con cada nota redondeada a una cifra decimal">
-                    <span class="gpa-semester-papa-label">Promedio ponderado del semestre</span>
-                    <span class="gpa-semester-papa-value ${gpa != null && gpa < 2.96 ? "failing" : ""}">${gpa != null ? gpa.toFixed(2) : "—"}</span>
-                    <span class="gpa-semester-original${semesterSimulated ? "" : " is-hidden"}" title="Promedio real sin simulaciones">${semesterSimulated ? formatOriginalDelta(originalGpa, gpa, 2) : "&nbsp;"}</span>
-                </div>
+                ${papaProjectionHtml(rows)}
             </div>
-            <div class="gpa-papa-projection"></div>
             <div class="gpa-semester-list"></div>
             ${notes.map(n => `<div class="gpa-semester-note">${n}</div>`).join("")}
         `;
-
-        renderPapaProjection(semesterCard.querySelector(".gpa-papa-projection"), rows);
 
         const list = semesterCard.querySelector(".gpa-semester-list");
         rows.forEach((r) => {
@@ -489,8 +499,8 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
     const goalCard = document.createElement("div");
     goalCard.className = "gpa-goal-card collapsed"; // Render as closed/inactive by default
     goalCard.innerHTML = `
-        <div class="gpa-goal-header" title="Haz clic para activar/desactivar el simulador">
-            <span class="gpa-goal-title">🎯 Simulador de Nota Objetivo</span>
+        <div class="gpa-goal-header" title="Haz clic para activar/desactivar la calculadora de nota objetivo">
+            <span class="gpa-goal-title">🎯 Calculadora de Nota Objetivo</span>
             <span class="gpa-goal-arrow">▼</span>
         </div>
         <div class="gpa-goal-content">
@@ -631,7 +641,7 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
                 }
             });
 
-            setGoalResult("gpa-goal-status-secured", "💡 Activa el simulador para proyectar las notas requeridas.");
+            setGoalResult("gpa-goal-status-secured", "💡 Activa la calculadora para proyectar las notas requeridas.");
             return;
         }
 
@@ -695,7 +705,7 @@ export function renderGpaDetails(container, subjectName, originalActivities, onG
                             act.inputElement.title = `Requieres ${required.toFixed(2)} (imposible)`;
                         } else {
                             act.inputElement.classList.remove("gpa-calc-grade-input-impossible");
-                            act.inputElement.title = `Nota sugerida por el simulador: ${required.toFixed(2)}`;
+                            act.inputElement.title = `Nota sugerida por la calculadora: ${required.toFixed(2)}`;
                         }
 
                         // Display original grade delta: compares simulator value with original grade

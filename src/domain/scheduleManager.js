@@ -1,3 +1,4 @@
+import { getTipologiaKey } from "../utils/tipologias.js";
 const STORAGE_KEY_SUBJECTS = "sia_pro_selected_subjects";
 const STORAGE_KEY_SELECTIONS = "sia_pro_selected_groups";
 
@@ -183,4 +184,23 @@ export function getConflictsForGroup(currentSubjectName, group) {
     });
 
     return conflicts;
+}
+
+/**
+ * Sums the credits planned in Horario (subjects with a group selected), in total and by typology key.
+ *
+ * @returns {{total: number, byTipo: Map.<string, number>}} Planned credits.
+ */
+export function getPlannedCredits() {
+    const selections = loadSelectedGroups();
+    const byTipo = new Map();
+    let total = 0;
+    loadSelectedSubjects().forEach((subject) => {
+        if (!selections[subject.name]) return;
+        const credits = parseInt(subject.creditos, 10) || 0;
+        total += credits;
+        const key = getTipologiaKey(subject.tipologia);
+        if (key) byTipo.set(key, (byTipo.get(key) || 0) + credits);
+    });
+    return { total, byTipo };
 }

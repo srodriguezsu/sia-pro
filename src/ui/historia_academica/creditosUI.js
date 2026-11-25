@@ -2,6 +2,7 @@ import { areCreditosAvailable, extractCreditosFromDom } from "../../scraper/domS
 import { saveCachedCreditos, loadCachedCreditos } from "../../domain/historyManager.js";
 import { tipologiaClass, getTipologiaKey, compareTipologias } from "../../utils/tipologias.js";
 import { openHistoriaWithTipologia } from "./asignaturasUI.js";
+import { getPlannedCredits } from "../../domain/scheduleManager.js";
 
 /**
  * Renders a visual breakdown of credit progress grouped by academic component/typology.
@@ -66,6 +67,9 @@ export function renderCreditosProgress(container) {
         ...(totalEstudiante ? [totalEstudiante] : [])
     ];
 
+    // Credits planned in Horario, shown as a third segment on each typology bar
+    const planned = getPlannedCredits();
+
     // Render credit typologies overview cards
     for (const item of orderedData) {
         const {
@@ -86,6 +90,15 @@ export function renderCreditosProgress(container) {
             ? ((aprobados + inscritos) / exigidos) * 100
             : 0;
 
+        // Planned credits: per typology, or the overall plan on the TOTAL card
+        const upper = (componente || "").toUpperCase();
+        const planeados = upper === "TOTAL"
+            ? planned.total
+            : upper === "TOTAL ESTUDIANTE" ? 0 : (planned.byTipo.get(getTipologiaKey(componente)) || 0);
+        const porcentajeConPlaneados = exigidos
+            ? Math.min(100, ((aprobados + inscritos + planeados) / exigidos) * 100)
+            : 0;
+
         const card = document.createElement("div");
         // Typology cards get their shared color; totals keep the default style
         const tipoKey = getTipologiaKey(componente);
@@ -100,6 +113,7 @@ export function renderCreditosProgress(container) {
             </div>
 
             <div class="sia-progress-bar">
+                ${planeados > 0 ? `<div class="sia-progress-planeado" style="width: ${porcentajeConPlaneados}%" title="Incluye ${planeados} créditos planeados en Horario"></div>` : ""}
                 <div 
                     class="sia-progress-aprobado"
                     style="width: ${porcentajeAprobado}%"
@@ -115,6 +129,7 @@ export function renderCreditosProgress(container) {
             <div class="sia-tipologia-metrics">
                 <span><strong>${aprobados}</strong> / ${exigidos} créditos</span>
                 <span>Inscritos: ${inscritos} - Faltan: ${pendientes - inscritos} </span>
+                ${planeados > 0 ? `<span class="sia-tipologia-planned">Planeados en Horario: ${planeados}</span>` : ""}
             </div>
         `;
 

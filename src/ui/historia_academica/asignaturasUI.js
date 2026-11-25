@@ -1,7 +1,8 @@
 import { areAsignaturasAvailable, extractAsignaturasFromDom } from "../../scraper/domScraper.js";
 import { saveCachedAsignaturas, loadCachedAsignaturas, loadCachedCreditos } from "../../domain/historyManager.js";
 import { buildHistorySummary, findRetakes, normalizeHistoryName, classifyAsignatura } from "../../domain/historySummary.js";
-import { calculateSemesterGPA } from "../../domain/gpaCalculator.js";
+import { calculateSemesterGPA, roundGrade } from "../../domain/gpaCalculator.js";
+import { findCalculatorSubject, openCalculatorForSubject } from "../gpaUI.js";
 import { applyTipologiaAccent, tipologiaClass, compareTipologias, getTipologiaKey } from "../../utils/tipologias.js";
 
 const formatGpa = (v) => (v != null ? v.toFixed(2) : "—");
@@ -232,7 +233,7 @@ export function renderHistoriaAcademica(container) {
     wrapper.className = "sia-sem-list";
 
     const title = document.createElement("h2");
-    title.textContent = "Historia Académica por Semestre";
+    title.textContent = "Historia Académica";
     title.className = "sia-semester-header";
 
     container.appendChild(title);
@@ -485,6 +486,38 @@ function buildSubjectCard(asignatura, semestre, retakes) {
     const grade = row.querySelector(".sia-asig-row-grade");
     grade.textContent = asignatura.calificacion != null ? asignatura.calificacion.toFixed(1) : "—";
     grade.title = asignatura.estado || "Sin estado final";
+
+    // Subjects still in progress: provisional grade from the calculator and a shortcut to simulate it
+    if (kind === "otra") {
+        const calc = findCalculatorSubject(asignatura.nombre);
+        const actions = document.createElement("span");
+        actions.className = "sia-asig-row-actions";
+        if (calc) {
+            const evaluated = Math.round(Math.min(calc.evaluatedWeight, 1) * 100);
+            grade.textContent = roundGrade(calc.grade).toFixed(1);
+            grade.classList.add("provisional");
+            grade.title = `Nota provisional según la calculadora (${evaluated}% evaluado; lo pendiente cuenta como 0)`;
+
+            const provisional = document.createElement("span");
+            provisional.className = "sia-asig-provisional";
+            provisional.textContent = `Provisional · ${evaluated}% evaluado`;
+            actions.appendChild(provisional);
+
+            const simulate = document.createElement("button");
+            simulate.type = "button";
+            simulate.className = "sia-asig-simulate";
+            simulate.textContent = "Abrir en calculadora";
+            simulate.title = "Abrir esta asignatura en la calculadora de promedio";
+            simulate.addEventListener("click", () => openCalculatorForSubject(calc.name));
+            actions.appendChild(simulate);
+        } else {
+            const hint = document.createElement("span");
+            hint.className = "sia-asig-provisional";
+            hint.textContent = "Ábrela en Mis calificaciones para usarla en la calculadora";
+            actions.appendChild(hint);
+        }
+        row.querySelector(".sia-asig-row-main").appendChild(actions);
+    }
 
     const attempts = retakes.get(normalizeHistoryName(asignatura.nombre));
     if (attempts) {

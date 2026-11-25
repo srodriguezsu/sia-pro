@@ -411,3 +411,45 @@
 .sia-hist-chip.active .sia-hist-chip-progress {
     color: var(--tipo-text);
 }
+
+/* In-progress subjects: provisional grade from the calculator + shortcut to simulate */
+.sia-asig-row-grade.provisional {
+    color: #64748b;
+    font-style: italic;
+}
+
+.sia-asig-row-actions {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: 4px;
+}
+
+.sia-asig-provisional {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.sia-asig-simulate {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 100px;
+    border: 1px solid #0f6d59;
+    background: white;
+    color: #0f6d59;
+    cursor: pointer;
+}
+
+.sia-asig-simulate:hover {
+    background: #0f6d59;
+    color: white;
+}
+
+.sia-asig-simulate:focus-visible {
+    outline: 2px solid #0f6d59;
+    outline-offset: 2px;
+}
